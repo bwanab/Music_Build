@@ -31,7 +31,7 @@ defmodule MusicBuild.Examples.MidiFromScratch do
   end
 
   def midi_file_from_arpeggio() do
-    arpeggio = Arpeggio.new(Chord.new_from_root(:C, :major, 4, 1), :up, 4)
+    arpeggio = Arpeggio.new(Chord.new(:C, :major, 4, 1), :up, 4)
     write_midi_file(Arpeggio.to_notes(arpeggio), "arpeggio")
   end
 
@@ -39,10 +39,10 @@ defmodule MusicBuild.Examples.MidiFromScratch do
   # it is actually somewhat musical.
   def midi_file_from_arpeggio_repeated() do
     dur = 16
-    arpeggio1 = Arpeggio.repeat(Arpeggio.new(Chord.new_from_root(:C, :minor, 4, dur), :up, dur), 4)
-    arpeggio2 = Arpeggio.repeat(Arpeggio.new(Chord.new_from_root(:F, :minor, 4, dur), :up, dur), 4)
-    arpeggio3 = Arpeggio.repeat(Arpeggio.new(Chord.new_from_root(:Ab, :major, 3, dur), :up, dur), 4)
-    arpeggio4 = Arpeggio.repeat(Arpeggio.new(Chord.new_from_root(:G, :minor, 3, dur), :up, dur), 4)
+    arpeggio1 = Arpeggio.repeat(Arpeggio.new(Chord.new(:C, :minor, 4, dur), :up, dur), 4)
+    arpeggio2 = Arpeggio.repeat(Arpeggio.new(Chord.new(:F, :minor, 4, dur), :up, dur), 4)
+    arpeggio3 = Arpeggio.repeat(Arpeggio.new(Chord.new(:Ab, :major, 3, dur), :up, dur), 4)
+    arpeggio4 = Arpeggio.repeat(Arpeggio.new(Chord.new(:G, :minor, 3, dur), :up, dur), 4)
     sonorities = [arpeggio1, arpeggio2, arpeggio3, arpeggio4]
     sonorities = List.duplicate(sonorities, 4) |> List.flatten()
     write_midi_file(sonorities, "multiple_arpeggios_repeated")
@@ -53,7 +53,7 @@ defmodule MusicBuild.Examples.MidiFromScratch do
     [
       Note.new({:C, 4}, duration: 4),
       Rest.new(4),
-      Chord.new_from_root(:A, :major, 4, 4),
+      Chord.new(:A, :major, 4, 4),
       Note.new({:E, 4}, duration: 4),
       Note.new({:F, 4}, duration: 4)
     ]

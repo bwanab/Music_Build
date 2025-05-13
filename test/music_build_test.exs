@@ -20,8 +20,8 @@ defmodule MusicBuildTest do
 
     test "creates a track from a list of chords" do
       chords = [
-        Chord.new({{:C, 4}, :major}, 1.0),
-        Chord.new({{:G, 4}, :major}, 1.0)
+        Chord.new(:C, :major, 4, 1.0),
+        Chord.new(:G, :major, 4, 1.0)
       ]
       track = MusicBuild.TrackBuilder.new("Chord Track", chords)
 
@@ -32,7 +32,7 @@ defmodule MusicBuildTest do
     end
 
     test "creates a track from a list of arpeggios" do
-      chord = Chord.new({{:C, 4}, :major}, 1.0)
+      chord = Chord.new(:C, :major, 4, 1.0)
       arpeggios = [
         Arpeggio.new(chord, :up, 1.0),
         Arpeggio.new(chord, :down, 1.0)
@@ -65,7 +65,7 @@ defmodule MusicBuildTest do
     end
 
     test "creates events from a chord" do
-      chord = Chord.new({{:C, 4}, :major}, 1.0)
+      chord = Chord.new(:C, :major, 4, 1.0)
       events = MusicBuild.EventBuilder.new(:chord, chord)
 
       assert length(events) == 6  # 3 notes * 2 events each
@@ -76,7 +76,7 @@ defmodule MusicBuildTest do
     end
 
     test "creates events from an arpeggio" do
-      chord = Chord.new({{:C, 4}, :major}, 1.0)
+      chord = Chord.new(:C, :major, 4, 1.0)
       arpeggio = Arpeggio.new(chord, :up, 1.0)
       events = MusicBuild.EventBuilder.new(:arpeggio, arpeggio)
 
