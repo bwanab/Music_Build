@@ -31,17 +31,18 @@ defmodule MusicBuild.Examples.MidiFromScratch do
   end
 
   def midi_file_from_arpeggio() do
-    arpeggio = Arpeggio.new(Chord.new_from_root(:C, :major, 4, 1.0), :up, 4)
+    arpeggio = Arpeggio.new(Chord.new_from_root(:C, :major, 4, 1), :up, 4)
     write_midi_file(Arpeggio.to_notes(arpeggio), "arpeggio")
   end
 
   # this is an example of building a sequence of arpeggios that are repeated.
   # it is actually somewhat musical.
   def midi_file_from_arpeggio_repeated() do
-    arpeggio1 = Arpeggio.repeat(Arpeggio.new(Chord.new_from_root(:C, :minor, 4, 1.0), :up, 1), 4)
-    arpeggio2 = Arpeggio.repeat(Arpeggio.new(Chord.new_from_root(:F, :minor, 4, 1.0), :up, 1), 4)
-    arpeggio3 = Arpeggio.repeat(Arpeggio.new(Chord.new_from_root(:Ab, :major, 3, 1.0), :up, 1), 4)
-    arpeggio4 = Arpeggio.repeat(Arpeggio.new(Chord.new_from_root(:G, :minor, 3, 1.0), :up, 1), 4)
+    dur = 16
+    arpeggio1 = Arpeggio.repeat(Arpeggio.new(Chord.new_from_root(:C, :minor, 4, dur), :up, dur), 4)
+    arpeggio2 = Arpeggio.repeat(Arpeggio.new(Chord.new_from_root(:F, :minor, 4, dur), :up, dur), 4)
+    arpeggio3 = Arpeggio.repeat(Arpeggio.new(Chord.new_from_root(:Ab, :major, 3, dur), :up, dur), 4)
+    arpeggio4 = Arpeggio.repeat(Arpeggio.new(Chord.new_from_root(:G, :minor, 3, dur), :up, dur), 4)
     sonorities = [arpeggio1, arpeggio2, arpeggio3, arpeggio4]
     sonorities = List.duplicate(sonorities, 4) |> List.flatten()
     write_midi_file(sonorities, "multiple_arpeggios_repeated")
@@ -50,11 +51,11 @@ defmodule MusicBuild.Examples.MidiFromScratch do
   @spec create_sonorities() :: [Sonority.t()]
   def create_sonorities() do
     [
-      Note.new({:C, 4}, duration: 1.0),
-      Rest.new(1.0),
-      Chord.new_from_root(:A, :major, 4, 1.0),
-      Note.new({:E, 4}, duration: 1.0),
-      Note.new({:F, 4}, duration: 1.0)
+      Note.new({:C, 4}, duration: 4),
+      Rest.new(4),
+      Chord.new_from_root(:A, :major, 4, 4),
+      Note.new({:E, 4}, duration: 4),
+      Note.new({:F, 4}, duration: 4)
     ]
   end
 
@@ -69,7 +70,7 @@ defmodule MusicBuild.Examples.MidiFromScratch do
     # Use the enhanced Chord API to create chords directly from Roman numerals
     chords = Enum.map(roman_numerals, fn roman_numeral ->
       # Create chord using the new from_roman_numeral function
-      Chord.from_roman_numeral(roman_numeral, :C, 4, 4.0)
+      Chord.from_roman_numeral(roman_numeral, :C, 4, 1)
     end)
 
     write_midi_file(chords, "random_progression")

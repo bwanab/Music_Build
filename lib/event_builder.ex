@@ -30,7 +30,9 @@ defmodule MusicBuild.EventBuilder do
   def new(sonority_type, sonority, tpqn \\ Defaults.default_ppqn)
 
   def new(:note, note, tpqn) do
+    IO.inspect(note)
     midi_note = Note.note_to_midi(note)
+    IO.inspect(midi_note)
     [
       %Event{symbol: :on, delta_time: 0, bytes: [144, midi_note.note_number, midi_note.velocity]},
       %Event{symbol: :off, delta_time: round(tpqn * midi_note.duration), bytes: [128, midi_note.note_number, 0]}
@@ -38,8 +40,9 @@ defmodule MusicBuild.EventBuilder do
   end
 
   def new(:rest, rest, tpqn) do
+    midi_duration = Rest.to_midi(rest)
     [
-      %Event{symbol: :off, delta_time: round(tpqn * rest.duration), bytes: [128, 0, 0]}
+      %Event{symbol: :off, delta_time: round(tpqn * midi_duration), bytes: [128, 0, 0]}
     ]
   end
 
