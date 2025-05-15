@@ -18,7 +18,7 @@ defmodule MusicBuild.Examples.MidiFromScratch do
   def midifile_with_rest(out_type \\ :midi) do
     c_major = major_scale(:C, 4)
     {c_major, _td} = add_rest_at_keeping_total_duration(c_major, 0, 0.5)
-    write_file(c_major, "c_major_scale_with_rest", out_type)
+    write_file([c_major], "c_major_scale_with_rest", out_type)
   end
 
   # this is an example of building a chord sequence mixed with a rest and a two note melody line.
@@ -27,12 +27,12 @@ defmodule MusicBuild.Examples.MidiFromScratch do
   @spec midi_file_mixed_chords_notes_rests(atom()) :: :ok
   def midi_file_mixed_chords_notes_rests(out_type \\ :midi) do
     sonorities = create_sonorities()
-    write_file(sonorities, "with chords", out_type)
+    write_file([sonorities], "with chords", out_type)
   end
 
   def midi_file_from_arpeggio(out_type \\ :midi) do
     arpeggio = Arpeggio.new(Chord.new(:C, :major, 4, 1), :up, 4)
-    write_file(Arpeggio.to_notes(arpeggio), "arpeggio", out_type)
+    write_file([Arpeggio.to_notes(arpeggio)], "arpeggio", out_type)
   end
 
   # this is an example of building a sequence of arpeggios that are repeated.
@@ -45,7 +45,7 @@ defmodule MusicBuild.Examples.MidiFromScratch do
     arpeggio4 = Arpeggio.repeat(Arpeggio.new(Chord.new(:G, :minor, 3, dur), :up, dur), 4)
     sonorities = [arpeggio1, arpeggio2, arpeggio3, arpeggio4]
     sonorities = List.duplicate(sonorities, 4) |> List.flatten()
-    write_file(sonorities, "multiple_arpeggios_repeated", out_type)
+    write_file([sonorities], "multiple_arpeggios_repeated", out_type)
   end
 
   @spec create_sonorities() :: [Sonority.t()]
@@ -75,13 +75,34 @@ defmodule MusicBuild.Examples.MidiFromScratch do
       Chord.from_roman_numeral(roman_numeral, :C, 4, 1)
     end)
 
-    write_file(chords, "random_progression", out_type)
+    write_file([chords], "random_progression", out_type)
   end
 
-  @spec write_midi_file([Sonority.t()], binary()) :: :ok
+  def file_two_tracks(out_type \\ :lily) do
+    # Get chord symbols (Roman numerals) from ChordPrims
+    roman_numerals = ChordPrims.random_progression(20, 1)
+
+    # Use the enhanced Chord API to create chords directly from Roman numerals
+    track1 = Enum.map(roman_numerals, fn roman_numeral ->
+      # Create chord using the new from_roman_numeral function
+      Chord.from_roman_numeral(roman_numeral, :C, 4, 4)
+    end)
+
+    # here we take every 4th roman numeral and get the root
+    # note of each chord as our bass line
+    root_numerals = Enum.take_every(roman_numerals, 4)
+    chords = Enum.map(root_numerals, fn roman_numeral ->
+        Chord.from_roman_numeral(roman_numeral, :C, 2, 1)
+    end)
+    track2 = Enum.map(chords, fn c -> Enum.at(Chord.to_notes(c), 0) end)
+
+    write_file([track1, track2], "two tracks", out_type)
+  end
+
+  @spec write_midi_file([[Sonority.t()]], binary()) :: :ok
   def write_midi_file(notes, name) do
-    track = TrackBuilder.new(name, notes, 960)
-    sfs = Sequence.new(name, 110, [track], 960)
+    tracks = Enum.map(notes, fn track -> TrackBuilder.new(name, track, 960) end)
+    sfs = Sequence.new(name, 110, tracks, 960)
     Writer.write(sfs, "test/#{name}.mid")
   end
 
