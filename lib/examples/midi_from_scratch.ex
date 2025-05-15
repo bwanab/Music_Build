@@ -89,7 +89,7 @@ defmodule MusicBuild.Examples.MidiFromScratch do
   def write_file(notes, name, out_type \\ :midi) do
     case out_type do
       :midi -> write_midi_file(notes, name)
-      :lily -> Lily.write(notes, "test/#{name}.ly", midi: true, title: name, out_path: "./test")
+      :lily -> MusicBuild.Examples.Lily.write(notes, "test/#{name}.ly", midi: true, title: name, out_path: "./test")
     end
   end
 
