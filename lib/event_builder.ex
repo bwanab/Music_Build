@@ -30,9 +30,7 @@ defmodule MusicBuild.EventBuilder do
   def new(sonority_type, sonority, tpqn \\ Defaults.default_ppqn)
 
   def new(:note, note, tpqn) do
-    IO.inspect(note)
     midi_note = Note.note_to_midi(note)
-    IO.inspect(midi_note)
     [
       %Event{symbol: :on, delta_time: 0, bytes: [144, midi_note.note_number, midi_note.velocity]},
       %Event{symbol: :off, delta_time: round(tpqn * midi_note.duration), bytes: [128, midi_note.note_number, 0]}
@@ -63,11 +61,11 @@ defmodule MusicBuild.EventBuilder do
     List.flatten(events)
   end
 
-  defp first_chord_note(%Note{note: n, velocity: v}, duration, tpqn) do
-    new(:note, Note.new(n, duration: duration, velocity: v), tpqn)
+  defp first_chord_note(%Note{note: n, octave: o, velocity: v}, duration, tpqn) do
+    new(:note, Note.new(n, o, duration, v), tpqn)
   end
 
-  defp other_chord_notes(%Note{note: n, velocity: v}) do
-    new(:note, Note.new(n, duration: 0, velocity: v))
+  defp other_chord_notes(%Note{note: n, octave: o}) do
+    new(:note, Note.new(n, o, 0))
   end
 end

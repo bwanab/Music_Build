@@ -6,9 +6,9 @@ defmodule MusicBuildTest do
   describe "TrackBuilder" do
     test "creates a track from a list of notes" do
       notes = [
-        Note.new({:C, 4}, duration: 1.0),
-        Note.new({:D, 4}, duration: 1.0),
-        Note.new({:E, 4}, duration: 1.0)
+        Note.new(:C, 4, 1),
+        Note.new(:D, 4, 1),
+        Note.new(:E, 4, 1)
       ]
       track = MusicBuild.TrackBuilder.new("Test Track", notes)
 
@@ -48,7 +48,7 @@ defmodule MusicBuildTest do
 
   describe "EventBuilder" do
     test "creates events from a note" do
-      note = Note.new({:C, 4}, duration: 1.0)
+      note = Note.new(:C, 4, 1)
       events = MusicBuild.EventBuilder.new(:note, note)
 
       assert length(events) == 2

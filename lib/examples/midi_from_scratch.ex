@@ -51,11 +51,11 @@ defmodule MusicBuild.Examples.MidiFromScratch do
   @spec create_sonorities() :: [Sonority.t()]
   def create_sonorities() do
     [
-      Note.new({:C, 4}, duration: 4),
+      Note.new(:C, 4, 4),
       Rest.new(4),
       Chord.new(:A, :major, 4, 4),
-      Note.new({:E, 4}, duration: 4),
-      Note.new({:F, 4}, duration: 4)
+      Note.new(:E, 4, 4),
+      Note.new(:F, 4, 4)
     ]
   end
 
