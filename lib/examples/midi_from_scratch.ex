@@ -7,37 +7,37 @@ defmodule MusicBuild.Examples.MidiFromScratch do
   alias Arpeggio
 
   # creates a C major scale where each note has a duration of 1 quarter note and writes it to a midifile.
-  def midifile_from_scratch() do
+  def midifile_from_scratch(out_type \\ :midi) do
     c_major = major_scale(:C, 4)
-    write_midi_file(c_major, "c_major_scale")
+    write_file(c_major, "c_major_scale", out_type)
   end
 
   # this is only for testing. The only case it can add a rest assumes all the notes are 1 quarter note and
   # it only adds at the beginning of the qn. More advanced uses must be "by hand" or are use cases for
   # a later date.
-  def midifile_with_rest() do
+  def midifile_with_rest(out_type \\ :midi) do
     c_major = major_scale(:C, 4)
     {c_major, _td} = add_rest_at_keeping_total_duration(c_major, 0, 0.5)
-    write_midi_file(c_major, "c_major_scale_with_rest")
+    write_file(c_major, "c_major_scale_with_rest", out_type)
   end
 
   # this is an example of building a chord sequence mixed with a rest and a two note melody line.
   # don't expect it do sound good :)
   # BTW: Dialyzer complains about this function, but it compiles and works correctly.
-  @spec midi_file_mixed_chords_notes_rests() :: :ok
-  def midi_file_mixed_chords_notes_rests() do
+  @spec midi_file_mixed_chords_notes_rests(atom()) :: :ok
+  def midi_file_mixed_chords_notes_rests(out_type \\ :midi) do
     sonorities = create_sonorities()
-    write_midi_file(sonorities, "with chords")
+    write_file(sonorities, "with chords", out_type)
   end
 
-  def midi_file_from_arpeggio() do
+  def midi_file_from_arpeggio(out_type \\ :midi) do
     arpeggio = Arpeggio.new(Chord.new(:C, :major, 4, 1), :up, 4)
-    write_midi_file(Arpeggio.to_notes(arpeggio), "arpeggio")
+    write_file(Arpeggio.to_notes(arpeggio), "arpeggio", out_type)
   end
 
   # this is an example of building a sequence of arpeggios that are repeated.
   # it is actually somewhat musical.
-  def midi_file_from_arpeggio_repeated() do
+  def midi_file_from_arpeggio_repeated(out_type \\ :midi) do
     dur = 16
     arpeggio1 = Arpeggio.repeat(Arpeggio.new(Chord.new(:C, :minor, 4, dur), :up, dur), 4)
     arpeggio2 = Arpeggio.repeat(Arpeggio.new(Chord.new(:F, :minor, 4, dur), :up, dur), 4)
@@ -45,7 +45,7 @@ defmodule MusicBuild.Examples.MidiFromScratch do
     arpeggio4 = Arpeggio.repeat(Arpeggio.new(Chord.new(:G, :minor, 3, dur), :up, dur), 4)
     sonorities = [arpeggio1, arpeggio2, arpeggio3, arpeggio4]
     sonorities = List.duplicate(sonorities, 4) |> List.flatten()
-    write_midi_file(sonorities, "multiple_arpeggios_repeated")
+    write_file(sonorities, "multiple_arpeggios_repeated", out_type)
   end
 
   @spec create_sonorities() :: [Sonority.t()]
@@ -62,8 +62,8 @@ defmodule MusicBuild.Examples.MidiFromScratch do
   # this creates a chord sequence with 10 measures. There is randomness in the computation of the series,
   # but it is built on a foundation of logical chord sequences so add this to a midi player with an
   # appropriate string/organ/brass like instrument and it should sound pleasing albeit possibly incipid.
-  @spec midi_file_from_chord_progression() :: :ok
-  def midi_file_from_chord_progression() do
+  @spec midi_file_from_chord_progression(atom()) :: :ok
+  def midi_file_from_chord_progression(out_type \\ :midi) do
     # Get chord symbols (Roman numerals) from ChordPrims
     roman_numerals = ChordPrims.random_progression(10, 1)
 
@@ -73,7 +73,7 @@ defmodule MusicBuild.Examples.MidiFromScratch do
       Chord.from_roman_numeral(roman_numeral, :C, 4, 1)
     end)
 
-    write_midi_file(chords, "random_progression")
+    write_file(chords, "random_progression", out_type)
   end
 
   @spec write_midi_file([Sonority.t()], binary()) :: :ok
@@ -81,6 +81,14 @@ defmodule MusicBuild.Examples.MidiFromScratch do
     track = TrackBuilder.new(name, notes, 960)
     sfs = Sequence.new(name, 110, [track], 960)
     Writer.write(sfs, "test/#{name}.mid")
+  end
+
+  @spec write_file([Sonority.t()], binary(), atom()) :: :ok
+  def write_file(notes, name, out_type \\ :midi) do
+    case out_type do
+      :midi -> write_midi_file(notes, name)
+      :lily -> Lily.write(notes, "test/#{name}.ly", midi: true, title: name, out_path: "./test")
+    end
   end
 
   @spec add_rest_at_keeping_total_duration([Sonority.t()], integer(), number()) :: {[Sonority.t()], float()}
