@@ -55,7 +55,9 @@ defmodule MusicBuild.Examples.MidiFromScratch do
       Rest.new(4),
       Chord.new(:A, :major, 4, 4),
       Note.new(:E, 4, 4),
-      Note.new(:F, 4, 4)
+      Note.new(:F, 4, 4),
+      Note.new(:G, 4, -4),     # dotted quarternote
+      Note.new(:Gb, 4, -2)     # dotted halfnote
     ]
   end
 
