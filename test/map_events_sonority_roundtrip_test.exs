@@ -14,9 +14,9 @@ defmodule Midifile.MapEventsSonorityRoundtripTest do
     track = Enum.at(sequence.tracks, 0)
 
     # 2) Convert the only track to sonorities
-    original_sonorities = MapEvents.track_to_sonorities(track, %{
+    original_sonorities = MapEvents.track_to_sonorities(track,
       ticks_per_quarter_note: sequence.ticks_per_quarter_note
-    })
+    )
 
     # 3) Write those sonorities out as a test/temp.mid file
     temp_track = TrackBuilder.new("Sonorities", original_sonorities, sequence.ticks_per_quarter_note)
@@ -31,9 +31,9 @@ defmodule Midifile.MapEventsSonorityRoundtripTest do
     # 4) Read test/temp.mid in as a new sequence and convert its only track to sonorities
     new_sequence = Midifile.read("test/temp.mid")
     new_track = Enum.at(new_sequence.tracks, 0)
-    new_sonorities = MapEvents.track_to_sonorities(new_track, %{
+    new_sonorities = MapEvents.track_to_sonorities(new_track,
       ticks_per_quarter_note: new_sequence.ticks_per_quarter_note
-    })
+    )
 
     # 5) The sonorities from step 2 should be identical to those from step 4
 
@@ -77,4 +77,32 @@ defmodule Midifile.MapEventsSonorityRoundtripTest do
     # Clean up the temporary file
     File.rm("test/temp.mid")
   end
+
+  test "sonorities round trip with lilypond and dotted note durations" do
+    sonorities = [
+      Note.new(:C, 4, 4),
+      Rest.new(4),
+      Chord.new(:A, :major, 4, 4),
+      Note.new(:E, 4, 4),
+      Note.new(:F, 4, 4),
+      Note.new(:G, 4, -4),     # dotted quarternote
+      Note.new(:Gb, 4, -2)     # dotted halfnote
+    ]
+    MusicBuild.LilyBuild.write([sonorities], "test/round_trip_dotted.ly", midi: true, out_path: "./test")
+    seq = Midifile.Reader.read("test/round_trip_dotted.midi")
+    track = Enum.at(seq.tracks, 0)
+    derived_sonorities = MapEvents.track_to_sonorities(track, chord_tolerance: 10)
+    assert length(sonorities) == length(derived_sonorities)
+    Enum.map(Enum.zip(sonorities, derived_sonorities), fn {s1, s2} ->
+      assert Sonority.type(s1) == Sonority.type(s2)
+      case Sonority.type(s1) do
+        :note -> assert s1.note == s2.note
+        :chord -> assert s1.root == s2.root
+        _ -> true
+      end
+      assert Sonority.duration(s1) == Sonority.duration(s2)
+    end)
+
+  end
+
 end

@@ -64,10 +64,11 @@ defmodule MapEvents do
         ticks_per_quarter_note: sequence.ticks_per_quarter_note
       })
   """
-  def track_to_sonorities(track, opts \\ %{}) do
+  @spec track_to_sonorities(Midifile.Track, keyword()) :: [Sonority]
+  def track_to_sonorities(track, opts \\ []) do
     # Default options
-    chord_tolerance = Map.get(opts, :chord_tolerance, 0)
-    tpqn = Map.get(opts, :ticks_per_quarter_note, Defaults.default_ppqn)
+    chord_tolerance = Keyword.get(opts, :chord_tolerance, 0)
+    tpqn = Keyword.get(opts, :ticks_per_quarter_note, Defaults.default_ppqn)
 
     # First, calculate absolute start and end times for all notes
     note_events = identify_note_events(track.events)

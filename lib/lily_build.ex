@@ -1,6 +1,4 @@
-
-
-defmodule MusicBuild.Examples.Lily do
+defmodule MusicBuild.LilyBuild do
 
   @preamble "\\version \"2.24.4\" \n"
   @doc """

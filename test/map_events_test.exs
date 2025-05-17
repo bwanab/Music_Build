@@ -160,14 +160,14 @@ defmodule MapEventsTest do
     track = %Track{events: events}
 
     # Test without chord tolerance - should get separate notes
-    sonorities_no_tolerance = MapEvents.track_to_sonorities(track, %{chord_tolerance: 0})
+    sonorities_no_tolerance = MapEvents.track_to_sonorities(track, chord_tolerance: 0)
     types_no_tolerance = Enum.map(sonorities_no_tolerance, &Sonority.type/1)
     # Without tolerance, we might get a mix of notes and chords depending on timing
     note_and_chord_count = Enum.count(types_no_tolerance, fn t -> t == :note || t == :chord end)
     assert note_and_chord_count >= 2
 
     # Test with chord tolerance - should identify the chord
-    sonorities_with_tolerance = MapEvents.track_to_sonorities(track, %{chord_tolerance: 10})
+    sonorities_with_tolerance = MapEvents.track_to_sonorities(track, chord_tolerance: 10)
 
     # Should have at least one chord
     types_with_tolerance = Enum.map(sonorities_with_tolerance, &Sonority.type/1)
