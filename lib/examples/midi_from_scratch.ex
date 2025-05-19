@@ -26,7 +26,15 @@ defmodule MusicBuild.Examples.MidiFromScratch do
   # BTW: Dialyzer complains about this function, but it compiles and works correctly.
   @spec midi_file_mixed_chords_notes_rests(atom()) :: :ok
   def midi_file_mixed_chords_notes_rests(out_type \\ :midi) do
-    sonorities = create_sonorities()
+    sonorities = [
+      Note.new(:C, 4, 4),
+      Rest.new(4),
+      Chord.new(:A, :major, 4, 4),
+      Note.new(:E, 4, 4),
+      Note.new(:F, 4, 4),
+      Note.new(:G, 4, -4),     # dotted quarternote
+      Note.new(:Gb, 4, -2)     # dotted halfnote
+    ]
     write_file([sonorities], "with chords", out_type)
   end
 
@@ -46,19 +54,6 @@ defmodule MusicBuild.Examples.MidiFromScratch do
     sonorities = [arpeggio1, arpeggio2, arpeggio3, arpeggio4]
     sonorities = List.duplicate(sonorities, 4) |> List.flatten()
     write_file([sonorities], "multiple_arpeggios_repeated", out_type)
-  end
-
-  @spec create_sonorities() :: [Sonority.t()]
-  def create_sonorities() do
-    [
-      Note.new(:C, 4, 4),
-      Rest.new(4),
-      Chord.new(:A, :major, 4, 4),
-      Note.new(:E, 4, 4),
-      Note.new(:F, 4, 4),
-      Note.new(:G, 4, -4),     # dotted quarternote
-      Note.new(:Gb, 4, -2)     # dotted halfnote
-    ]
   end
 
   # this creates a chord sequence with 10 measures. There is randomness in the computation of the series,
