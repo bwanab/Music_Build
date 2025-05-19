@@ -10,13 +10,21 @@ defmodule MusicBuild.LilyBuild do
   end
 
   def render_track(sonorities) do
+    note_nums = Enum.flat_map(sonorities, fn s -> Sonority.to_notes(s) end)
+                |> Enum.map(fn n -> Note.note_to_midi(n).note_number  end)
+    average_note = Enum.sum(note_nums) / length(note_nums)
+    clef = if average_note < 50 do
+      "\\clef bass"
+    else
+        ""
+    end
     s = show(sonorities)
     "
     \\new Staff
     {
       \\new Voice
       {
-        #{s}
+        #{clef} #{s}
       }
     }
     "
