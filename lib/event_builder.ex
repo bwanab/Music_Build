@@ -45,7 +45,7 @@ defmodule MusicBuild.EventBuilder do
   end
 
   def new(:chord, chord, tpqn) do
-    notes = Chord.to_notes(chord)
+    notes = Sonority.to_notes(chord)
     [first | others] = notes
     first_event = first_chord_note(first, chord.duration, tpqn)
     other_events = Enum.map(others, &(other_chord_notes(&1)))
@@ -56,7 +56,7 @@ defmodule MusicBuild.EventBuilder do
   end
 
   def new(:arpeggio, arpeggio, tpqn) do
-    notes = Arpeggio.to_notes(arpeggio)
+    notes = Sonority.to_notes(arpeggio)
     events = Enum.map(notes, &(new(:note, &1, tpqn)))
     List.flatten(events)
   end

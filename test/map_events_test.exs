@@ -80,9 +80,9 @@ defmodule MapEventsTest do
 
     # Check two-note chord (C4 + E4)
     assert Sonority.type(second) == :chord
-    assert length(Chord.to_notes(second)) == 2
+    assert length(Sonority.to_notes(second)) == 2
     # Use MapSet for unordered comparison of notes
-    chord_notes = Enum.map(Chord.to_notes(second), & &1.note) |> MapSet.new()
+    chord_notes = Enum.map(Sonority.to_notes(second), & &1.note) |> MapSet.new()
     expected_notes = MapSet.new([:C, :E])
     assert MapSet.equal?(chord_notes, expected_notes)
     assert Sonority.duration(second) == 32
@@ -98,9 +98,9 @@ defmodule MapEventsTest do
 
     # Check two-note chord (E4, G4)
     assert Sonority.type(fourth) == :chord
-    assert length(Chord.to_notes(fourth)) == 2
+    assert length(Sonority.to_notes(fourth)) == 2
     # Use MapSet for unordered comparison of notes
-    chord_notes = Enum.map(Chord.to_notes(fourth), & &1.note) |> MapSet.new()
+    chord_notes = Enum.map(Sonority.to_notes(fourth), & &1.note) |> MapSet.new()
     expected_notes = MapSet.new([:E, :G])
     assert MapSet.equal?(chord_notes, expected_notes)
     assert Sonority.duration(fourth) == 16

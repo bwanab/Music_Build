@@ -3,7 +3,6 @@ defmodule Midifile.MapEventsSonorityRoundtripTest do
   alias MusicBuild.TrackBuilder
   alias MapEvents
   alias TrackBuilder
-  alias Midifile.Track
   alias Midifile.Sequence
   alias Midifile.Writer
 

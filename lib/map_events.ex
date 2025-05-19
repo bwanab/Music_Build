@@ -339,7 +339,7 @@ defmodule MapEvents do
       # Check if any notes aren't part of the basic chord
       # If found, add them as additions
       chord_notes = basic_chord
-                    |> Chord.to_notes()
+                    |> Sonority.to_notes()
                     |> Enum.map(fn n -> n.note end)
                     |> MapSet.new()
 

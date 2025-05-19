@@ -32,7 +32,7 @@ defmodule MusicBuild.Examples.MidiFromScratch do
 
   def midi_file_from_arpeggio(out_type \\ :midi) do
     arpeggio = Arpeggio.new(Chord.new(:C, :major, 4, 1), :up, 4)
-    write_file([Arpeggio.to_notes(arpeggio)], "arpeggio", out_type)
+    write_file([Sonority.to_notes(arpeggio)], "arpeggio", out_type)
   end
 
   # this is an example of building a sequence of arpeggios that are repeated.
@@ -94,7 +94,7 @@ defmodule MusicBuild.Examples.MidiFromScratch do
     chords = Enum.map(root_numerals, fn roman_numeral ->
         Chord.from_roman_numeral(roman_numeral, :C, 2, 1)
     end)
-    track2 = Enum.map(chords, fn c -> Enum.at(Chord.to_notes(c), 0) end)
+    track2 = Enum.map(chords, fn c -> Enum.at(Sonority.to_notes(c), 0) end)
 
     write_file([track1, track2], "two tracks", out_type)
   end
