@@ -91,13 +91,14 @@ defmodule Midifile.MapEventsSonorityRoundtripTest do
     MusicBuild.LilyBuild.write([sonorities], "test/round_trip_dotted.ly", midi: true, out_path: "./test")
     seq = Midifile.Reader.read("test/round_trip_dotted.midi")
     track = Enum.at(seq.tracks, 0)
-    derived_sonorities = MapEvents.track_to_sonorities(track, chord_tolerance: 10)
+    derived_tpqn = seq.ticks_per_quarter_note
+    derived_sonorities = MapEvents.track_to_sonorities(track, chord_tolerance: 10, ticks_per_quarter_note: derived_tpqn)
     assert length(sonorities) == length(derived_sonorities)
     Enum.map(Enum.zip(sonorities, derived_sonorities), fn {s1, s2} ->
       assert Sonority.type(s1) == Sonority.type(s2)
       case Sonority.type(s1) do
-        :note -> assert s1.note == s2.note
-        :chord -> assert s1.root == s2.root
+        :note -> assert Note.enharmonic_equal?(s1.note, s2.note)
+        :chord -> assert Note.enharmonic_equal?(s1.root, s2.root)
         _ -> true
       end
       assert Sonority.duration(s1) == Sonority.duration(s2)

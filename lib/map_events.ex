@@ -69,7 +69,6 @@ defmodule MapEvents do
     # Default options
     chord_tolerance = Keyword.get(opts, :chord_tolerance, 0)
     tpqn = Keyword.get(opts, :ticks_per_quarter_note, Defaults.default_ppqn)
-
     # First, calculate absolute start and end times for all notes
     note_events = identify_note_events(track.events)
 
@@ -281,14 +280,13 @@ defmodule MapEvents do
           #IO.inspect(current_time, label: "current time")
           #IO.inspect(prev_time, label: "prev time")
           number_of_quarter_notes = (current_time - prev_time) / tpqn
-          raw_duration = 4 / number_of_quarter_notes
-          #IO.inspect(raw_duration, label: "duration")
+          #IO.inspect(number_of_quarter_notes, label: "number qn")
           duration = cond do
-            within_percent?(raw_duration, 0.375, 0.05) -> -16
-            within_percent?(raw_duration, 0.75, 0.05) -> -8
-            within_percent?(raw_duration, 1.5, 0.05) -> -4
-            within_percent?(raw_duration, 3, 0.05) -> -2
-            true -> closest_power_of_two(floor(raw_duration))
+            within_percent?(number_of_quarter_notes, 0.375, 0.05) -> -16
+            within_percent?(number_of_quarter_notes, 0.75, 0.05) -> -8
+            within_percent?(number_of_quarter_notes, 1.5, 0.05) -> -4
+            within_percent?(number_of_quarter_notes, 3, 0.05) -> -2
+            true -> closest_power_of_two(floor(4 / number_of_quarter_notes))
           end
           #IO.inspect(duration, label: "duration")
           new_sonority = cond do
@@ -309,11 +307,12 @@ defmodule MapEvents do
                 Note.midi_to_note(note.note, duration, note.velocity)
               end)
               # Detect chord structure and create using enhanced API
+              #IO.inspect(notes, label: "notes")
               create_enhanced_chord(notes, duration)
           end
 
           # Only add sonority if it has duration
-          if Sonority.duration(new_sonority) > 0 do
+          if Sonority.duration(new_sonority) != nil do
             {[new_sonority | sonorities_acc], current_time}
           else
             {sonorities_acc, current_time}
@@ -327,7 +326,7 @@ defmodule MapEvents do
     @doc false
   # Creates a chord using the enhanced Chord API
   # Attempts to detect the chord structure (root, quality) from the given notes
-  defp create_enhanced_chord(notes, duration) do
+  def create_enhanced_chord(notes, duration) do
     # Fallback to old API if detection fails
     fallback_fn = fn -> Chord.new(notes, duration) end
 
@@ -341,25 +340,39 @@ defmodule MapEvents do
       # If found, add them as additions
       chord_notes = basic_chord
                     |> Chord.to_notes()
-                    |> Enum.map(fn n -> elem(n.note, 0) end)
+                    |> Enum.map(fn n -> n.note end)
                     |> MapSet.new()
 
       note_pitches = notes
-                     |> Enum.map(fn n -> elem(n.note, 0) end)
+                     |> Enum.map(fn n -> n.note end)
                      |> MapSet.new()
 
       additions = MapSet.difference(note_pitches, chord_notes)
+      omissions = MapSet.difference(chord_notes, note_pitches)
 
       # If there are additions, add them to the chord
-      if MapSet.size(additions) > 0 do
+      rval = if MapSet.size(additions) > 0 do
         addition_notes = Enum.filter(notes, fn n ->
-          MapSet.member?(additions, elem(n.note, 0))
+          MapSet.member?(additions, n.note)
         end)
 
         Chord.with_additions(basic_chord, addition_notes)
       else
         basic_chord
       end
+
+      # If there are omissions
+      if MapSet.size(omissions) > 0 do
+        omitted_notes = Enum.with_index(rval.notes)
+          |> Enum.filter(fn {n, _} -> MapSet.member?(omissions, n.note) end)
+          |> Enum.map(fn {_, i} -> i
+        end)
+
+        Chord.with_omissions(rval, omitted_notes)
+      else
+        rval
+      end
+
     rescue
       _ -> fallback_fn.()
     end
@@ -386,8 +399,9 @@ defmodule MapEvents do
 
   @doc false
   # Detects the root, quality and octave of a chord from a list of notes
-  defp detect_chord_from_notes(notes) do
+  def detect_chord_from_notes(notes) do
     # Common chord structures with their root positions
+    #IO.inspect(notes, label: "detect_chord_from_notes - notes")
     chord_structures = [
       # Major triads
       {0, :major, MapSet.new([0, 4, 7])},
@@ -411,7 +425,7 @@ defmodule MapEvents do
 
     # Convert notes to MIDI note numbers
     midi_notes = Enum.map(notes, fn note ->
-      Note.note_to_midi(note)
+      Note.note_to_midi(note).note_number
     end)
 
     # Find minimum MIDI note to use as reference
@@ -443,8 +457,10 @@ defmodule MapEvents do
 
       # Get the note and octave from the MIDI number
       note = Note.midi_to_note(root_midi, 1.0, 64) # Default velocity of 64
-      {root_name, root_octave} = note.note
+      root_name = note.note
+      root_octave = note.octave
 
+      # IO.inspect({total_score, {root_name, quality, root_octave}}, label: "score")
       {total_score, {root_name, quality, root_octave}}
     end)
 
