@@ -1,5 +1,6 @@
 defmodule MusicBuild.LilyBuild do
 
+  @bass_clef_cutoff 55
   @preamble "\\version \"2.24.4\" \n"
   @doc """
   Render a list of sonorities to a Lilypond string.
@@ -13,7 +14,7 @@ defmodule MusicBuild.LilyBuild do
     note_nums = Enum.flat_map(sonorities, fn s -> Sonority.to_notes(s) end)
                 |> Enum.map(fn n -> Note.note_to_midi(n).note_number  end)
     average_note = Enum.sum(note_nums) / length(note_nums)
-    clef = if average_note < 50 do
+    clef = if average_note < @bass_clef_cutoff do
       "\\clef bass"
     else
         ""
