@@ -12,6 +12,7 @@ defmodule MusicBuild.LilyBuild do
 
   def render_track(sonorities) do
     note_nums = Enum.flat_map(sonorities, fn s -> Sonority.to_notes(s) end)
+                |> Enum.filter(fn n -> Sonority.type(n) == :note end)
                 |> Enum.map(fn n -> Note.note_to_midi(n).note_number  end)
     average_note = Enum.sum(note_nums) / length(note_nums)
     clef = if average_note < @bass_clef_cutoff do
