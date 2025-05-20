@@ -13,10 +13,18 @@ defmodule MusicBuild.Examples.JazzProgressions do
       Chord.from_roman_numeral(roman_numeral, key, 4, 1)
     end)
 
-    _last = Enum.at(chords, -1)
-    all_chords = chords # ++ [Chord.copy(last, inversion: 2, octave: Chord.octave(last) - 1) ]
+    last = Enum.at(chords, 0)
+    all_chords = chords ++ [Chord.copy(last, inversion: 2, octave: Chord.octave(last) - 1) ]
 
-    MidiFromScratch.write_file([all_chords], "jazz_progression", out_type)
+    raw_bass = Enum.map(all_chords,
+      fn c ->
+        [Arpeggio.new(Chord.copy(c, octave: Chord.octave(c)-2), :up_down, 8)]
+         ++ [Rest.new(8)]
+      end)
+
+    bass = List.flatten(raw_bass)
+
+    MidiFromScratch.write_file([all_chords, bass], "jazz_progression", out_type)
   end
 
 end
