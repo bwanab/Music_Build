@@ -16,10 +16,30 @@ defmodule MusicBuild.Examples.JazzProgressions do
     last = Enum.at(chords, 0)
     all_chords = chords ++ [Chord.copy(last, inversion: 2, octave: Chord.octave(last) - 1) ]
 
-    raw_bass = Enum.map(all_chords,
-      fn c ->
+    IO.inspect(Enum.map(all_chords, fn %Chord{root: root, quality: quality} -> {root, quality} end))
+
+    raw_bass = Enum.map(Enum.with_index(all_chords),
+      fn {c, i} ->
+
+        # this code is somewhat of an abomination. I'm simply trying to find the note
+        # to connect adjacent bass arpeggios. In particular, the midi note conversions
+        # are problematic.
+
+        # Create a MidiNote module that makes this more structured.
+
+        next_chord = Enum.at(all_chords, Integer.mod(i + 1, length(all_chords)))
+        #root_note = Note.copy(Chord.root_note(next_chord), octave: Chord.octave(next_chord) - 2)
+        root_note = Enum.at(Arpeggio.new(next_chord, :up_down, 8) |> Sonority.to_notes, 0)
+        %{note_number: note_number} = Note.note_to_midi(root_note)
+        %Note{note: note, octave: octave} = Note.midi_to_note(note_number - (2 * 12 + 2))
+        octave = if octave < 2, do: 2, else: octave
+        last_note = Note.new(note, octave, 8, root_note.velocity)
+        # IO.inspect(last_note)
+        #
+        # last_note = Rest.new(8)
+
         [Arpeggio.new(Chord.copy(c, octave: Chord.octave(c)-2), :up_down, 8)]
-         ++ [Rest.new(8)]
+         ++ [last_note]
       end)
 
     bass = List.flatten(raw_bass)
