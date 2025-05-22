@@ -298,13 +298,13 @@ defmodule MapEvents do
             length(active_notes) == 1 ->
               [note] = active_notes
               # Convert MIDI note to Note struct
-              Note.midi_to_note(note.note, duration, note.velocity)
+              MidiNote.midi_to_note(note.note, duration, note.velocity)
 
             # Multiple notes active - create a Chord
             true ->
               # Convert each MIDI note to a Note struct
               notes = Enum.map(active_notes, fn note ->
-                Note.midi_to_note(note.note, duration, note.velocity)
+                MidiNote.midi_to_note(note.note, duration, note.velocity)
               end)
               # Detect chord structure and create using enhanced API
               #IO.inspect(notes, label: "notes")
@@ -425,7 +425,7 @@ defmodule MapEvents do
 
     # Convert notes to MIDI note numbers
     midi_notes = Enum.map(notes, fn note ->
-      Note.note_to_midi(note).note_number
+      MidiNote.note_to_midi(note).note_number
     end)
 
     # Find minimum MIDI note to use as reference
@@ -456,7 +456,7 @@ defmodule MapEvents do
       root_midi = min_midi + root_offset
 
       # Get the note and octave from the MIDI number
-      note = Note.midi_to_note(root_midi, 1.0, 64) # Default velocity of 64
+      note = MidiNote.midi_to_note(root_midi, 1.0, 64) # Default velocity of 64
       root_name = note.note
       root_octave = note.octave
 

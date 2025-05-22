@@ -56,7 +56,7 @@ defmodule Filter do
 
                 # Create an adapter that extracts the MIDI note number from Note struct
                 adapted_predicate = fn note_struct ->
-                  midi_note = Note.note_to_midi(note_struct).note_number
+                  midi_note = MidiNote.note_to_midi(note_struct).note_number
                   note_predicate.(midi_note)
                 end
 
@@ -220,7 +220,7 @@ defmodule Filter do
                 duration = abs_time - start_time
 
                 # Create a Note struct
-                note_struct = Note.midi_to_note(note, duration, velocity)
+                note_struct = MidiNote.midi_to_note(note, duration, velocity)
 
                 # Check if this note matches predicate
                 matching = note_predicate.(note_struct)
@@ -250,7 +250,7 @@ defmodule Filter do
                 duration = abs_time - start_time
 
                 # Create a Note struct
-                note_struct = Note.midi_to_note(note, duration, velocity)
+                note_struct = MidiNote.midi_to_note(note, duration, velocity)
 
                 # Check if this note matches predicate
                 matching = note_predicate.(note_struct)
