@@ -3,8 +3,8 @@ defmodule MusicBuild.Examples.JazzProgressions do
   alias MusicBuild.Examples.MidiFromScratch
 
 
-  @spec do_chord_progression([atom()], atom(), boolean(), atom()) :: :ok
-  def do_chord_progression(progression, key \\ :C, add_last \\ true, out_type \\ :lily) do
+  @spec do_chord_progression([atom()], atom(), boolean(), String.t(), atom()) :: :ok
+  def do_chord_progression(progression, key \\ :C, name \\ "jazz_progression", add_last \\ true, out_type \\ :lily) do
     # Get chord symbols (Roman numerals) from ChordPrims
 
     # Use the enhanced Chord API to create chords directly from Roman numerals
@@ -20,6 +20,7 @@ defmodule MusicBuild.Examples.JazzProgressions do
     else
       chords
     end
+
 
     pattern = case chord_length do
                 4 -> [1,2,3,4,3,2,1,2]
@@ -53,7 +54,15 @@ defmodule MusicBuild.Examples.JazzProgressions do
 
     bass = List.flatten(raw_bass)
 
-    MidiFromScratch.write_file([all_chords, bass], "jazz_progression", out_type)
+    MidiFromScratch.write_file([all_chords, bass], name, out_type)
+  end
+
+  def basic_jazz() do
+    do_chord_progression([:ii7, :V7, :I7], :E, "basic_jazz")
+  end
+
+  def pachelbels_canon() do
+    do_chord_progression([:I7, :V7, :vi7, :iii7, :IV7, :I7, :IV7, :V7],  :E, "pachelbel", false)
   end
 
 end
