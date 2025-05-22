@@ -3,8 +3,8 @@ defmodule MusicBuild.Examples.JazzProgressions do
   alias MusicBuild.Examples.MidiFromScratch
 
 
-  @spec do_chord_progression([atom()], atom(), atom()) :: :ok
-  def do_chord_progression(progression, key \\ :C, out_type \\ :lily) do
+  @spec do_chord_progression([atom()], atom(), boolean(), atom()) :: :ok
+  def do_chord_progression(progression, key \\ :C, add_last \\ true, out_type \\ :lily) do
     # Get chord symbols (Roman numerals) from ChordPrims
 
     # Use the enhanced Chord API to create chords directly from Roman numerals
@@ -14,12 +14,21 @@ defmodule MusicBuild.Examples.JazzProgressions do
     end)
 
     last = Enum.at(chords, 0)
-    all_chords = chords ++ [Chord.copy(last, inversion: 2, octave: Chord.octave(last) - 1) ]
+    chord_length = length(Sonority.to_notes(last))
+    all_chords = if add_last do
+      chords ++ [Chord.copy(last, inversion: 2, octave: Chord.octave(last) - 1) ]
+    else
+      chords
+    end
 
-    IO.inspect(Enum.map(all_chords, fn %Chord{root: root, quality: quality} -> {root, quality} end))
+    pattern = case chord_length do
+                4 -> [1,2,3,4,3,2,1,2]
+                3 -> [1,3,2,3,2,3,2,1]
+              end
+
 
     raw_bass = Enum.map(Enum.with_index(all_chords),
-      fn {c, i} ->
+      fn {c, _i} ->
 
         # this code is somewhat of an abomination. I'm simply trying to find the note
         # to connect adjacent bass arpeggios. In particular, the midi note conversions
@@ -27,19 +36,19 @@ defmodule MusicBuild.Examples.JazzProgressions do
 
         # Create a MidiNote module that makes this more structured.
 
-        next_chord = Enum.at(all_chords, Integer.mod(i + 1, length(all_chords)))
-        #root_note = Note.copy(Chord.root_note(next_chord), octave: Chord.octave(next_chord) - 2)
-        root_note = Enum.at(Arpeggio.new(next_chord, :up_down, 8) |> Sonority.to_notes, 0)
-        %{note_number: note_number} = Note.note_to_midi(root_note)
-        %Note{note: note, octave: octave} = Note.midi_to_note(note_number - (2 * 12 + 2))
-        octave = if octave < 2, do: 2, else: octave
-        last_note = Note.new(note, octave, 8, root_note.velocity)
+        # next_chord = Enum.at(all_chords, Integer.mod(i + 1, length(all_chords)))
+        # #root_note = Note.copy(Chord.root_note(next_chord), octave: Chord.octave(next_chord) - 2)
+        # root_note = Enum.at(Arpeggio.new(next_chord, :up_down , 8) |> Sonority.to_notes, 0)
+        # %{note_number: note_number} = Note.note_to_midi(root_note)
+        # %Note{note: note, octave: octave} = Note.midi_to_note(note_number - (2 * 12 + 2))
+        # octave = if octave < 2, do: 2, else: octave
+        # last_note = Note.new(note, octave, 8, root_note.velocity)
         # IO.inspect(last_note)
         #
         # last_note = Rest.new(8)
 
-        [Arpeggio.new(Chord.copy(c, octave: Chord.octave(c)-2), :up_down, 8)]
-         ++ [last_note]
+        [Arpeggio.new(Chord.copy(c, octave: Chord.octave(c)-2), pattern, 8)]
+#         ++ [last_note]
       end)
 
     bass = List.flatten(raw_bass)
