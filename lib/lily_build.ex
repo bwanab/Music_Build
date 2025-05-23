@@ -10,7 +10,7 @@ defmodule MusicBuild.LilyBuild do
     Enum.map(sonorities, fn s -> Sonority.show(s) end) |> Enum.join(" ")
   end
 
-  def render_track(sonorities) do
+  def render_track(sonorities, time_sig, tempo) do
     note_nums = Enum.flat_map(sonorities, fn s -> Sonority.to_notes(s) end)
                 |> Enum.filter(fn n -> Sonority.type(n) == :note end)
                 |> Enum.map(fn n -> MidiNote.note_to_midi(n).note_number  end)
@@ -24,6 +24,8 @@ defmodule MusicBuild.LilyBuild do
     "
     \\new Staff
     {
+      \\time #{time_sig}
+      \\tempo 4 = #{tempo}
       \\new Voice
       {
         #{clef} #{s}
@@ -40,8 +42,10 @@ defmodule MusicBuild.LilyBuild do
   def render(sonorities, opts) when is_list(sonorities) do
     midi = Keyword.get(opts, :midi, false)
     title = Keyword.get(opts, :title, "No Name")
+    tempo = Keyword.get(opts, :tempo, 90)
+    time_sig = Keyword.get(opts, :time_sig, "4/4")
     midi_str = if midi, do: "\\midi { }", else: ""
-    s = Enum.map(sonorities, fn track -> render_track(track) end)
+    s = Enum.map(sonorities, fn track -> render_track(track, time_sig, tempo) end)
         |> Enum.join("\n")
     @preamble <> "
     \\book
@@ -55,7 +59,16 @@ defmodule MusicBuild.LilyBuild do
         <<
           #{s}
         >>
-        \\layout { }
+        \\layout {
+              \\context {
+              \\Voice
+              \\remove Note_heads_engraver
+              \\consists Completion_heads_engraver
+              \\remove Rest_engraver
+              \\consists Completion_rest_engraver
+           }
+
+        }
         #{midi_str}
       }
     }"
