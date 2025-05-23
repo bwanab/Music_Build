@@ -39,8 +39,8 @@ defmodule FilterTest do
       Filter.process_notes(
         sequence,
         0,
-        # Match notes shorter than 200 ticks
-        fn note -> note.duration < 200 end,
+        # Match notes shorter than eigth notes
+        fn note -> note.duration > 8 end,
         # Remove these notes
         :remove
       )

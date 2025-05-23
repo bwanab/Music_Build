@@ -206,20 +206,6 @@ defmodule MapEvents do
     Enum.concat(notes, unmatched_notes)
   end
 
-  def closest_power_of_two(num) when is_number(num) and num > 0 do
-    # Calculate the power using logarithm base 2
-    power = :math.log2(num) |> round()
-
-    # Return 2 raised to that power
-    :math.pow(2, power) |> round()
-  end
-
-  def within_percent?(number, target, percent) when is_number(number) and is_number(target) and is_number(percent) do
-    lower_bound = target * (1 - percent)
-    upper_bound = target * (1 + percent)
-
-    number >= lower_bound and number <= upper_bound
-  end
 
 
   @doc """
@@ -279,35 +265,29 @@ defmodule MapEvents do
 
           #IO.inspect(current_time, label: "current time")
           #IO.inspect(prev_time, label: "prev time")
-          number_of_quarter_notes = (current_time - prev_time) / tpqn
+          num_quarter_notes = (current_time - prev_time) / tpqn
           #IO.inspect(number_of_quarter_notes, label: "number qn")
-          duration = cond do
-            within_percent?(number_of_quarter_notes, 0.375, 0.05) -> -16
-            within_percent?(number_of_quarter_notes, 0.75, 0.05) -> -8
-            within_percent?(number_of_quarter_notes, 1.5, 0.05) -> -4
-            within_percent?(number_of_quarter_notes, 3, 0.05) -> -2
-            true -> closest_power_of_two(floor(4 / number_of_quarter_notes))
-          end
           #IO.inspect(duration, label: "duration")
           new_sonority = cond do
             # No notes active - create a Rest
             Enum.empty?(active_notes) ->
-              Rest.new(duration)
+              Rest.new(MidiNote.get_duration(num_quarter_notes))
 
             # One note active - create a Note
             length(active_notes) == 1 ->
               [note] = active_notes
               # Convert MIDI note to Note struct
-              MidiNote.midi_to_note(note.note, duration, note.velocity)
+              MidiNote.midi_to_note(note.note, num_quarter_notes, note.velocity)
 
             # Multiple notes active - create a Chord
             true ->
               # Convert each MIDI note to a Note struct
               notes = Enum.map(active_notes, fn note ->
-                MidiNote.midi_to_note(note.note, duration, note.velocity)
+                MidiNote.midi_to_note(note.note, num_quarter_notes, note.velocity)
               end)
               # Detect chord structure and create using enhanced API
               #IO.inspect(notes, label: "notes")
+              duration = MidiNote.get_duration(num_quarter_notes)
               create_enhanced_chord(notes, duration)
           end
 
@@ -456,7 +436,7 @@ defmodule MapEvents do
       root_midi = min_midi + root_offset
 
       # Get the note and octave from the MIDI number
-      note = MidiNote.midi_to_note(root_midi, 1.0, 64) # Default velocity of 64
+      note = MidiNote.midi_to_note(root_midi, 1, 64) # Default velocity of 64
       root_name = note.note
       root_octave = note.octave
 

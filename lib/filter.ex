@@ -28,6 +28,7 @@ defmodule Filter do
   def process_notes(sequence, track_number, note_predicate, operation) do
     # Get the tracks list
     tracks = sequence.tracks
+    tpqn = sequence.ticks_per_quarter_note
 
     # Validate track number is in range
     if track_number < 0 or track_number >= length(tracks) do
@@ -47,7 +48,7 @@ defmodule Filter do
               note_predicate.(test_note)
 
               # If we get here, the function accepts Note structs, use the enhanced approach
-              {processed_events, note_data} = mark_matching_notes(track.events, note_predicate)
+              {processed_events, note_data} = mark_matching_notes(track.events, note_predicate, tpqn)
               final_processed_events = process_note_events_enhanced(processed_events, operation, note_data)
               %{track | events: final_processed_events}
             rescue
@@ -60,7 +61,7 @@ defmodule Filter do
                   note_predicate.(midi_note)
                 end
 
-                {processed_events, note_data} = mark_matching_notes(track.events, adapted_predicate)
+                {processed_events, note_data} = mark_matching_notes(track.events, adapted_predicate, tpqn)
                 final_processed_events = process_note_events_enhanced(processed_events, operation, note_data)
                 %{track | events: final_processed_events}
             end
@@ -186,7 +187,7 @@ defmodule Filter do
   # - A list of {event, matching} tuples, where matching is true if the event is part of a note
   #   that matches the predicate
   # - A map of notes data with Note structs for use with velocity functions
-  defp mark_matching_notes(events, note_predicate) do
+  def mark_matching_notes(events, note_predicate, tpqn) do
     # Track note_on events to calculate duration when note_off is found
     # Format: %{{channel, note} => {start_time, velocity, matching?}}
     note_on_events = %{}
@@ -217,7 +218,7 @@ defmodule Filter do
             case Map.get(note_on_acc, key) do
               {start_time, velocity} ->
                 # Calculate duration
-                duration = abs_time - start_time
+                duration = (abs_time - start_time) / tpqn
 
                 # Create a Note struct
                 note_struct = MidiNote.midi_to_note(note, duration, velocity)
@@ -247,7 +248,7 @@ defmodule Filter do
             case Map.get(note_on_acc, key) do
               {start_time, velocity} ->
                 # Calculate duration
-                duration = abs_time - start_time
+                duration = (abs_time - start_time) / tpqn
 
                 # Create a Note struct
                 note_struct = MidiNote.midi_to_note(note, duration, velocity)
