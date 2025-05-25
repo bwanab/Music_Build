@@ -14,11 +14,9 @@ defmodule MusicBuild.Examples.ArpeggioProgressions do
   end
 
   # @spec do_arpeggio_progression([atom()], atom(), boolean(), String.t(), atom()) :: :ok
-  def do_arpeggio_progression(progression, key \\ :C, name \\ "arpeggio_progression", out_type \\ :lily) do
-    # Get chord symbols (Roman numerals) from ChordPrims
+  def do_arpeggio_progression(progression, key \\ :C, name \\ "arpeggio_progression", repeats, out_type \\ :lily) do
 
     chords = build_chords(progression, key, 4, 1)
-    # Use the enhanced Chord API to create chords directly from Roman numerals
 
     patterns = [
       [4,1,2,3],
@@ -32,20 +30,33 @@ defmodule MusicBuild.Examples.ArpeggioProgressions do
     ]
 
     all_arpeggios = Enum.map(Enum.zip(chords, patterns), fn {c, p} -> Arpeggio.new(c, p, 0.5) end)
+                    |> List.duplicate(repeats)
+                    |> List.flatten()
 
-    bass = Enum.map(chords,
-      fn a ->
-        Enum.at(Sonority.to_notes(a), 0)
-        |> Note.bump_octave(:down)
-        |> Note.bump_octave(:down)
-        |> Note.copy(duration: 2)
-      end)
 
-    MidiFromScratch.write_file([all_arpeggios, bass], name, out_type)
+    bass_patterns = [
+      [1,4],
+      [1,2],
+      [1,3],
+      [1,3],
+      [1,2],
+      [1,4],
+      [1,2],
+      [1,3]
+    ]
+
+
+    bass_chords = build_chords(progression, key, 2, 1)
+
+    bass_arpeggios = Enum.map(Enum.zip(bass_chords, bass_patterns), fn {c, p} -> Arpeggio.new(c, p, 1) end)
+                    |> List.duplicate(repeats)
+                    |> List.flatten()
+
+    MidiFromScratch.write_file([all_arpeggios, bass_arpeggios], name, out_type)
   end
 
   def pachelbels_canon() do
-    do_arpeggio_progression([:I, :V, :vi, :iii, :IV, :I, :IV, :V],  :C, "pachelbel")
+    do_arpeggio_progression([:I, :V, :vi, :iii, :IV, :I, :IV, :V],  :C, "pachelbel", 10)
   end
 
 end
