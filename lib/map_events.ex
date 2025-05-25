@@ -271,7 +271,7 @@ defmodule MapEvents do
           new_sonority = cond do
             # No notes active - create a Rest
             Enum.empty?(active_notes) ->
-              Rest.new(MidiNote.get_duration(num_quarter_notes))
+              Rest.new(num_quarter_notes)
 
             # One note active - create a Note
             length(active_notes) == 1 ->
@@ -287,8 +287,7 @@ defmodule MapEvents do
               end)
               # Detect chord structure and create using enhanced API
               #IO.inspect(notes, label: "notes")
-              duration = MidiNote.get_duration(num_quarter_notes)
-              create_enhanced_chord(notes, duration)
+              create_enhanced_chord(notes, num_quarter_notes)
           end
 
           # Only add sonority if it has duration

@@ -79,13 +79,13 @@ defmodule Midifile.MapEventsSonorityRoundtripTest do
 
   test "sonorities round trip with lilypond and dotted note durations" do
     sonorities = [
-      Note.new(:C, 4, 4),
-      Rest.new(4),
-      Chord.new(:A, :major, 4, 4),
-      Note.new(:E, 4, 4),
-      Note.new(:F, 4, 4),
-      Note.new(:G, 4, -4),     # dotted quarternote
-      Note.new(:Gb, 4, -2)     # dotted halfnote
+      Note.new(:C, 4, 1),
+      Rest.new(1),
+      Chord.new(:A, :major, 4, 1),
+      Note.new(:E, 4, 1),
+      Note.new(:F, 4, 1),
+      Note.new(:G, 4, 1.5),     # dotted quarternote
+      Note.new(:Gb, 4, 3)     # dotted halfnote
     ]
     MusicBuild.LilyBuild.write([sonorities], "test/round_trip_dotted.ly", midi: true, out_path: "./test")
     seq = Midifile.Reader.read("test/round_trip_dotted.midi")

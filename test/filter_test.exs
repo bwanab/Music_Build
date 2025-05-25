@@ -40,7 +40,7 @@ defmodule FilterTest do
         sequence,
         0,
         # Match notes shorter than eigth notes
-        fn note -> note.duration > 8 end,
+        fn note -> note.duration < 0.5 end,
         # Remove these notes
         :remove
       )

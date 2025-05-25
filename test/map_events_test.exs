@@ -47,16 +47,16 @@ defmodule MapEventsTest do
     # Check first note (C4)
     assert Sonority.type(first) == :note
     assert Note.enharmonic_equal?(first.note, :C)  # Note: Using uppercase to match Note implementation
-    assert Sonority.duration(first) == 16
+    assert Sonority.duration(first) == 0.25
 
     # Check rest between notes
     assert Sonority.type(second) == :rest
-    assert Sonority.duration(second) == 16
+    assert Sonority.duration(second) == 0.25
 
     # Check second note (E4)
     assert Sonority.type(third) == :note
     assert Note.enharmonic_equal?(third.note, :E)  # Note: Using uppercase to match Note implementation
-    assert Sonority.duration(third) == 16
+    assert Sonority.duration(third) == 0.25
   end
 
   test "group_into_sonorities creates Chords for overlapping notes" do
@@ -76,7 +76,7 @@ defmodule MapEventsTest do
     # Check first solo note
     assert Sonority.type(first) == :note
     assert first.note == :C  # Note: Using uppercase to match Note implementation
-    assert Sonority.duration(first) == 16
+    assert Sonority.duration(first) == 0.25
 
     # Check two-note chord (C4 + E4)
     assert Sonority.type(second) == :chord
@@ -85,7 +85,7 @@ defmodule MapEventsTest do
     chord_notes = Enum.map(Sonority.to_notes(second), & &1.note) |> MapSet.new()
     expected_notes = MapSet.new([:C, :E])
     assert MapSet.equal?(chord_notes, expected_notes)
-    assert Sonority.duration(second) == 32
+    assert Sonority.duration(second) == 0.125
 
     # Check three-note chord (C4 + E4 + G4)
     assert Sonority.type(third) == :chord
@@ -94,7 +94,7 @@ defmodule MapEventsTest do
     chord_notes = Enum.map(third.notes, & &1.note) |> MapSet.new()
     expected_notes = MapSet.new([:C, :E, :G])
     assert MapSet.equal?(chord_notes, expected_notes)
-    assert Sonority.duration(third) == 8
+    assert Sonority.duration(third) == 0.625
 
     # Check two-note chord (E4, G4)
     assert Sonority.type(fourth) == :chord
@@ -103,12 +103,12 @@ defmodule MapEventsTest do
     chord_notes = Enum.map(Sonority.to_notes(fourth), & &1.note) |> MapSet.new()
     expected_notes = MapSet.new([:E, :G])
     assert MapSet.equal?(chord_notes, expected_notes)
-    assert Sonority.duration(fourth) == 16
+    assert Sonority.duration(fourth) == 0.25
 
     # Check fifth solo note
     assert Sonority.type(fifth) == :note
     assert fifth.note == :G  # Note: Using uppercase to match Note implementation
-    assert Sonority.duration(fifth) == 32
+    assert Sonority.duration(fifth) == 0.125
 
   end
 
@@ -239,14 +239,14 @@ defmodule MapEventsTest do
       Enum.map(s.notes, & &1.note) |> MapSet.new() |> MapSet.equal?(MapSet.new([:C, :E, :G]))
     end)
     assert c_major != nil
-    assert Sonority.duration(c_major) == 4
+    assert Sonority.duration(c_major) == 1
 
     # Find the C# note
     c_sharp = Enum.find(sonorities, fn s ->
       Sonority.type(s) == :note && Note.enharmonic_equal?(s.note, :C!)
     end)
     assert c_sharp != nil
-    assert Sonority.duration(c_sharp) == 4
+    assert Sonority.duration(c_sharp) == 1
 
     # Find the D minor chord
     d_minor = Enum.find(sonorities, fn s ->
@@ -254,18 +254,18 @@ defmodule MapEventsTest do
       Enum.map(s.notes, & &1.note) |> MapSet.new() |> MapSet.equal?(MapSet.new([:D, :F, :A]))
     end)
     assert d_minor != nil
-    assert Sonority.duration(d_minor) == 4
+    assert Sonority.duration(d_minor) == 1
 
     # Find the B note
     b_note = Enum.find(sonorities, fn s ->
       Sonority.type(s) == :note && Note.enharmonic_equal?(s.note, :B)
     end)
     assert b_note != nil
-    assert Sonority.duration(b_note) == 4
+    assert Sonority.duration(b_note) == 1
 
     # Find the rest
     rest = Enum.find(sonorities, fn s -> Sonority.type(s) == :rest end)
     assert rest != nil
-    assert Sonority.duration(rest) == 4
+    assert Sonority.duration(rest) == 1
   end
 end
