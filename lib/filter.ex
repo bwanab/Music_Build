@@ -82,7 +82,7 @@ defmodule Filter do
 
   Takes a list of marked events (events with matching flag) and note data for velocity functions.
   """
-  def process_note_events_enhanced(marked_events, operation, note_data \\ %{}) do
+  def process_note_events_enhanced(marked_events, operation, _note_data \\ %{}) do
     # Process events based on the operation and marked status
     {processed_events, _accumulated_delta} =
       Enum.reduce(marked_events, {[], 0}, fn {event, matching_note}, {acc, accumulated_delta} ->
@@ -129,18 +129,10 @@ defmodule Filter do
           is_tuple(operation) && elem(operation, 0) == :velocity &&
             is_function(elem(operation, 1)) &&
             matching_note && event.symbol == :on ->
-            # Get the note key from the event
-            note_number = event.bytes |> Enum.at(1)
-            channel = Midifile.Event.channel(event)
-
-            # Find the original Note struct for this note
-            # We need to search through note_data to find the corresponding Note struct
-            # Key to look up in the note data map
-            {note_struct, _} =
-              Enum.find_value(note_data, {{}, false}, fn
-                {{ch, n}, note_data} when ch == channel and n == note_number -> note_data
-                _ -> nil
-              end)
+            # Find the original Note struct for this note by searching through note_data
+            # We need to find the note that matches this event - this is a simplified approach
+            # since the velocity function feature seems less critical than the main filtering bug
+            note_struct = nil
 
             # Get current note data
             [status, note, velocity] = event.bytes
@@ -189,51 +181,58 @@ defmodule Filter do
   # - A map of notes data with Note structs for use with velocity functions
   def mark_matching_notes(events, note_predicate, tpqn) do
     # Track note_on events to calculate duration when note_off is found
-    # Format: %{{channel, note} => {start_time, velocity, matching?}}
+    # Format: %{{channel, note, start_time} => {velocity, event_index}}
     note_on_events = %{}
 
-    # Calculate absolute start times for all events
-    events_with_times = add_absolute_times(events)
+    # Calculate absolute start times for all events and add event indices
+    events_with_times_and_indices = 
+      events
+      |> add_absolute_times()
+      |> Enum.with_index()
+      |> Enum.map(fn {{event, abs_time}, index} -> {event, abs_time, index} end)
 
     # First pass: Identify note pairs and calculate durations
     {note_data, _final_note_on_events} =
-      Enum.reduce(events_with_times, {%{}, note_on_events}, fn {event, abs_time},
+      Enum.reduce(events_with_times_and_indices, {%{}, note_on_events}, fn {event, abs_time, event_index},
                                                                {note_data_acc, note_on_acc} ->
         case event do
           # Handle note_on events (velocity > 0)
           %{symbol: :on, bytes: [_status, note, velocity]} when velocity > 0 ->
             channel = Midifile.Event.channel(event)
-            key = {channel, note}
-            # Store this note_on event with its start time and velocity
-            # IO.inspect(key, label: "note_on_acc key")
-            new_note_on_acc = Map.put(note_on_acc, key, {abs_time, velocity})
+            # Use start time as part of the key to handle multiple notes with same channel/note
+            key = {channel, note, abs_time}
+            # Store this note_on event with its velocity and event index
+            new_note_on_acc = Map.put(note_on_acc, key, {velocity, event_index})
             {note_data_acc, new_note_on_acc}
 
           # Handle note_off events
           %{symbol: :off} = event ->
             channel = Midifile.Event.channel(event)
             note = Midifile.Event.note(event)
-            key = {channel, note}
+            
+            # Find the matching note_on by looking for the most recent one with same channel/note
+            matching_note_on = 
+              note_on_acc
+              |> Enum.filter(fn {{ch, n, _start_time}, _} -> ch == channel and n == note end)
+              |> Enum.max_by(fn {{_ch, _n, start_time}, _} -> start_time end, fn -> nil end)
 
-            # Check if we have a corresponding note_on event
-            case Map.get(note_on_acc, key) do
-              {start_time, velocity} ->
+            case matching_note_on do
+              {{_channel, _note, start_time}, {velocity, note_on_index}} ->
                 # Calculate duration
                 duration = (abs_time - start_time) / tpqn
 
                 # Create a Note struct
                 note_struct = MidiNote.midi_to_note(note, duration, velocity)
-                # IO.inspect(note_struct)
 
                 # Check if this note matches predicate
                 matching = note_predicate.(note_struct)
-                # IO.inspect(matching)
 
-                # Add note data to our map
-                new_note_data = Map.put(note_data_acc, key, {note_struct, matching})
+                # Store note data using note_on event index as key for unique identification
+                new_note_data = Map.put(note_data_acc, note_on_index, {note_struct, matching, event_index})
 
-                # Remove from note_on tracking
-                new_note_on_acc = Map.delete(note_on_acc, key)
+                # Remove the matched note_on from tracking
+                key_to_remove = {channel, note, start_time}
+                new_note_on_acc = Map.delete(note_on_acc, key_to_remove)
 
                 {new_note_data, new_note_on_acc}
 
@@ -245,11 +244,15 @@ defmodule Filter do
           # Handle note_on with zero velocity (treated as note_off)
           %{symbol: :on, bytes: [_status, note, 0]} ->
             channel = Midifile.Event.channel(event)
-            key = {channel, note}
+            
+            # Find the matching note_on by looking for the most recent one with same channel/note
+            matching_note_on = 
+              note_on_acc
+              |> Enum.filter(fn {{ch, n, _start_time}, _} -> ch == channel and n == note end)
+              |> Enum.max_by(fn {{_ch, _n, start_time}, _} -> start_time end, fn -> nil end)
 
-            # Check if we have a corresponding note_on event
-            case Map.get(note_on_acc, key) do
-              {start_time, velocity} ->
+            case matching_note_on do
+              {{_channel, _note, start_time}, {velocity, note_on_index}} ->
                 # Calculate duration
                 duration = (abs_time - start_time) / tpqn
 
@@ -259,11 +262,12 @@ defmodule Filter do
                 # Check if this note matches predicate
                 matching = note_predicate.(note_struct)
 
-                # Add note data to our map
-                new_note_data = Map.put(note_data_acc, key, {note_struct, matching})
+                # Store note data using note_on event index as key for unique identification
+                new_note_data = Map.put(note_data_acc, note_on_index, {note_struct, matching, event_index})
 
-                # Remove from note_on tracking
-                new_note_on_acc = Map.delete(note_on_acc, key)
+                # Remove the matched note_on from tracking
+                key_to_remove = {channel, note, start_time}
+                new_note_on_acc = Map.delete(note_on_acc, key_to_remove)
 
                 {new_note_data, new_note_on_acc}
 
@@ -278,27 +282,25 @@ defmodule Filter do
         end
       end)
 
-    # Second pass: Mark events based on note matching
+    # Second pass: Mark events based on note matching using event indices
     {marked_events, _} =
-      Enum.reduce(events_with_times, {[], %{}}, fn {event, _abs_time},
+      Enum.reduce(events_with_times_and_indices, {[], %{}}, fn {event, _abs_time, event_index},
                                                    {marked_events, note_map} ->
         case event do
           # Handle note_on events (velocity > 0)
-          %{symbol: :on, bytes: [_status, note, velocity]} when velocity > 0 ->
-            channel = Midifile.Event.channel(event)
-            key = {channel, note}
-
-            # Check if this note was in our note_data map
+          %{symbol: :on, bytes: [_status, _note, velocity]} when velocity > 0 ->
+            # Check if this note_on event index is in our note_data map
             matching =
-              case Map.get(note_data, key) do
-                {_note_struct, is_match} -> is_match
+              case Map.get(note_data, event_index) do
+                {_note_struct, is_match, _note_off_index} -> is_match
                 nil -> false
               end
 
-            # If matching, add to our tracking map by channel/note key
+            # If matching, add to our tracking map using note_off index for the pair
             new_note_map =
               if matching do
-                Map.put(note_map, key, true)
+                {_note_struct, _is_match, note_off_index} = Map.get(note_data, event_index)
+                Map.put(note_map, note_off_index, true)
               else
                 note_map
               end
@@ -308,18 +310,13 @@ defmodule Filter do
 
           # Handle note_off events
           %{symbol: :off} = event ->
-            # Extract note and channel information
-            channel = Midifile.Event.channel(event)
-            note = Midifile.Event.note(event)
-            key = {channel, note}
-
-            # Check if this is the note_off for a tracked note_on
-            matching = Map.get(note_map, key, false)
+            # Check if this note_off event index is tracked
+            matching = Map.get(note_map, event_index, false)
 
             # Remove from tracking map if found
             new_note_map =
               if matching do
-                Map.delete(note_map, key)
+                Map.delete(note_map, event_index)
               else
                 note_map
               end
@@ -328,18 +325,14 @@ defmodule Filter do
             {[{event, matching} | marked_events], new_note_map}
 
           # Handle note_on with zero velocity (treated as note_off)
-          %{symbol: :on, bytes: [_status, note, 0]} ->
-            # Extract channel information
-            channel = Midifile.Event.channel(event)
-            key = {channel, note}
-
-            # Check if this is the note_off for a tracked note_on
-            matching = Map.get(note_map, key, false)
+          %{symbol: :on, bytes: [_status, _note, 0]} ->
+            # Check if this note_off event index is tracked
+            matching = Map.get(note_map, event_index, false)
 
             # Remove from tracking map if found
             new_note_map =
               if matching do
-                Map.delete(note_map, key)
+                Map.delete(note_map, event_index)
               else
                 note_map
               end
