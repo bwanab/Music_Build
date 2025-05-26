@@ -16,7 +16,10 @@ defmodule MusicBuild.Examples.ArpeggioProgressions do
   # @spec do_arpeggio_progression([atom()], atom(), boolean(), String.t(), atom()) :: :ok
   def do_arpeggio_progression(progression, key \\ :C, name \\ "arpeggio_progression", repeats, out_type \\ :lily) do
 
-    chords = build_chords(progression, key, 4, 1)
+    chords = build_chords(progression, key, 4, 2)
+
+    all_chords = List.duplicate(chords, repeats)
+                |> List.flatten()
 
     patterns = [
       [4,1,2,3],
@@ -52,7 +55,7 @@ defmodule MusicBuild.Examples.ArpeggioProgressions do
                     |> List.duplicate(repeats)
                     |> List.flatten()
 
-    MidiFromScratch.write_file([all_arpeggios, bass_arpeggios], name, out_type)
+    MidiFromScratch.write_file([all_chords, all_arpeggios, bass_arpeggios], name, out_type)
   end
 
   def pachelbels_canon() do

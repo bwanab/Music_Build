@@ -44,11 +44,11 @@ defmodule Filter do
         # Try the enhanced approach with Note structs
             try do
               # Try to call with a placeholder Note struct to see if it works with Notes
-              test_note = Note.new({:c, 4}, duration: 1, velocity: 100)
+              test_note = Note.new({:C, 4}, duration: 1, velocity: 100)
               note_predicate.(test_note)
-
               # If we get here, the function accepts Note structs, use the enhanced approach
               {processed_events, note_data} = mark_matching_notes(track.events, note_predicate, tpqn)
+              # IO.inspect(processed_events)
               final_processed_events = process_note_events_enhanced(processed_events, operation, note_data)
               %{track | events: final_processed_events}
             rescue
@@ -205,6 +205,7 @@ defmodule Filter do
             channel = Midifile.Event.channel(event)
             key = {channel, note}
             # Store this note_on event with its start time and velocity
+            # IO.inspect(key, label: "note_on_acc key")
             new_note_on_acc = Map.put(note_on_acc, key, {abs_time, velocity})
             {note_data_acc, new_note_on_acc}
 
@@ -222,9 +223,11 @@ defmodule Filter do
 
                 # Create a Note struct
                 note_struct = MidiNote.midi_to_note(note, duration, velocity)
+                # IO.inspect(note_struct)
 
                 # Check if this note matches predicate
                 matching = note_predicate.(note_struct)
+                # IO.inspect(matching)
 
                 # Add note data to our map
                 new_note_data = Map.put(note_data_acc, key, {note_struct, matching})
@@ -354,7 +357,7 @@ defmodule Filter do
   end
 
   # Calculate absolute time for each event based on delta times
-  defp add_absolute_times(events) do
+  def add_absolute_times(events) do
     {events_with_times, _} =
       Enum.reduce(events, {[], 0}, fn event, {acc, current_time} ->
         new_time = current_time + event.delta_time
