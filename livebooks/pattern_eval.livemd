@@ -1,11 +1,14 @@
+<!-- livebook:{"file_entries":[{"name":"quantized_blues_bass.mid","type":"url","url":"https://github.com/bwanab/music_build/test/quantized_blues_bass.mid"}]} -->
+
 # Pattern_Eval
 
 ```elixir
-path = Path.expand("~/src/music_build")
 Mix.install([
-  {:music_build, path:  path},
+  {:music_prims, github: "bwanab/music_prims", override: true},
+  {:midifile, github: "bwanab/elixir-midifile", override: true},
+  {:music_build, github: "bwanab/music_build", override: true},
   {:better_weighted_random, "~> 0.1.0"}
-])
+], force: true )
 ```
 
 ## Introduction
@@ -30,8 +33,10 @@ import MapEvents
 
 First, we'll read the midi file with our bass lines and split them into individual lines. We're defining a 'line' as one 12-bar segment.
 
+**NOTE: The file pointed to by test_dir is needed** It can be obtained here: https://github.com/bwanab/music_build/test/quantized_blues_bass.mid. Then edit the code to change the test_dir path to point to it.
+
 ```elixir
-test_dir = Path.expand("./test")
+test_dir = Path.expand("~/src/music_build/test")
 seq = Midifile.read(Path.join(test_dir, "quantized_blues_bass.mid"))
 track = Enum.at(seq.tracks, 0)
 sonorities = MapEvents.track_to_sonorities(track)
@@ -127,10 +132,14 @@ end)
 pattern
 ```
 
+**NOTE: this cell is generating a file in local storage pointed at by test_dir**. Ensure this is a writable location and where it is wanted.
+
 ```elixir
 MusicBuild.Examples.CleanUpMidiFile.write_midi_file([base_lines], 
   Path.join(test_dir, "generated_blues_bass.mid"))
 ```
+
+Now, you can load the generated midi file into a midi player and ideally specify that it is being played as a bass instrument (even though it doesn't really matter).
 
 ## Build the pattern/position probabilities table
 
