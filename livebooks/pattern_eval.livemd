@@ -1,0 +1,145 @@
+# Pattern_Eval
+
+```elixir
+path = Path.expand("~/src/music_build")
+Mix.install([
+  {:music_build, path:  path},
+  {:better_weighted_random, "~> 0.1.0"}
+])
+```
+
+## Introduction
+
+mThe point of this notebook is to investigate the creation of a bass playing algorithm. That's a tall order so we're going to constrain ourselves to blues for now. Simple 12 bar blues where the bass is just playing 8 note runs per measure. The approach will be to get a representative sample and analyze the notes played to obtain an algorithm to emulate that.
+
+## Create a probability table from the sample.
+
+In this section, we'll be using a midi file that contains 8 rounds of 12-bar blues bass played by me. Honestly, I'm not a great bass player, but having been pressed into service a number of times in my musical career, I'm not awful. Since I'm not a keyboard player, I played the bass on my analog electric bass into an audio file, then in the DAW (Reaper, in this case), using the Reatune plugin, I converted the audio to midi. After a bit of clean up and quantization I got a very constrained file. Constrained in the sense that it is 12 bar blues where each bar consists of exactly 8 eighth notes. This is a strict :I, :IV, :I, :I, :IV, :IV, :I, :I, :V, :IV, :I, :V, blues pattern.
+
+What we're going to do here is spilt this into the 8 12-bar lines, then further split these into a map of notes based on the chord degree. That is [:I, :IV, :V] are the keys and the notes are given as groups of 8. We'll then count the frequency with which notes in each position for a given chord are seen and compute the probabilities of those chord/position pairs. Given that we ought to be able to reproduce a 'decent' bassline by computing the probability weighted note to play in every position.
+
+We'll see how that sounds then move on to two other approaches:
+
+1. Next note probability based on the last note and possibly the guessed next note.
+2. Connecting note that computes the last note for a given chord based on the next chord to come.
+
+```elixir
+alias MusicBuild.Examples.PatternEvaluator
+import MapEvents
+```
+
+First, we'll read the midi file with our bass lines and split them into individual lines. We're defining a 'line' as one 12-bar segment.
+
+```elixir
+test_dir = Path.expand("./test")
+seq = Midifile.read(Path.join(test_dir, "quantized_blues_bass.mid"))
+track = Enum.at(seq.tracks, 0)
+sonorities = MapEvents.track_to_sonorities(track)
+chunks = Enum.chunk_every(sonorities, 12*8)
+```
+
+Now, we use the 12-bar chord pattern to break down the lines into chord groupings. That is, we are gathering all the notes as they were played for each of the 3 chords in the progression in the order that they were played. This means in each of the individual lists, we've got 8 notes that are the notes played in their respective positions of each run. This grouping allows us to understand the most likely note to be played in each note position. My prior belief is that the first note is most likely to be the root of the chord and the note is a 'connecting' note from one chord to the next. I have no prior about positions 2-7 (one based).
+
+```elixir
+pattern = [:I, :IV, :I, :I, :IV, :IV, :I, :I, :V, :IV, :I, :V]
+mapped = Enum.map(chunks, fn line -> PatternEvaluator.chunk_line(line, 8, pattern) end)
+             |> PatternEvaluator.merge_maps_with_lists()
+
+```
+
+```elixir
+root_map = Map.new(Enum.map(Map.keys(mapped), fn k -> 
+  note = Chord.note_from_roman_numeral(k, :A, 2, :major)
+  {k, [note, MidiNote.to_midi(note)]} 
+end))
+```
+
+Now, we compute the intervals of the notes from the chord roots.
+
+```elixir
+interval_map = Map.new(Enum.map(mapped, fn {k, v} -> 
+  [_n, root_note_number] = Map.get(root_map, k)
+  {k, Enum.map(v, fn note_list ->
+    Enum.map(note_list, fn note ->
+      note_number = MidiNote.to_midi(note)
+      note_number - root_note_number
+    end)
+  end)}
+  end)
+)
+```
+
+Here, we get the raw numerical frequency of each note at each position. Eyeballing the numbers, it looks obvious that the first note is overwhelmingly the root of the chord. The 2nd note is mostly the 4th
+
+```elixir
+raw_frequency_table = Map.new(Enum.map(interval_map, fn {k, im} ->
+  {k, Enum.map(0..7, fn i ->
+    Enum.reduce(im, %{}, fn row, acc -> 
+      value = Enum.at(row, i)
+      Map.put(acc, value, Map.get(acc, value, 0) + 1) end)
+    end)}
+  end)
+)
+```
+
+Let's convert the frequency table to probabilities.
+
+```elixir
+probabilities_table = Map.new(Enum.map(raw_frequency_table, fn {k, im} ->
+    {k, Map.new(Enum.map(Enum.with_index(im), fn {row, ind} -> 
+      row_count = Enum.sum(Map.values(row))
+      {ind, Enum.map(row, fn {interval, count} -> 
+        {interval, count / row_count}
+        end)}
+      end))}
+  end)
+)
+
+```
+
+Now, given the probabilities table we can find the most likely interval given the root chord and the note position:
+
+```elixir
+new_interval = WeightedRandom.take_one(get_in(probabilities_table, [:I, 1]))
+```
+
+```elixir
+[%Note{duration: duration, velocity: velocity}, root_number] = Map.get(root_map, :I)
+MidiNote.midi_to_note(root_number + new_interval, duration, velocity)
+
+```
+
+Let's see what we can do:
+
+```elixir
+base_lines = Enum.flat_map(0..7, fn _ ->
+Enum.flat_map(pattern, fn rn -> 
+  Enum.map(0..7, fn i ->
+    [_, root_number] = Map.get(root_map, rn)
+    interval = WeightedRandom.take_one(get_in(probabilities_table, [rn, i]))
+    MidiNote.midi_to_note(root_number + interval, 0.5, 127)
+  end)
+  end)
+end)
+```
+
+```elixir
+pattern
+```
+
+```elixir
+MusicBuild.Examples.CleanUpMidiFile.write_midi_file([base_lines], 
+  Path.join(test_dir, "generated_blues_bass.mid"))
+```
+
+## Build the pattern/position probabilities table
+
+## Next steps
+
+Interesting. I loaded this midi file into the same project that the original bass line had come from. It didn't sound awful - kind of like the bass player equivalent of Ginger Baker playing drums for Cream - it works, but it's really weird. There are two more angles I want to attack this problem with. Let's take stock:
+
+1. The approach so far which is figuring out for the given pattern and note position a note that represents the probability weighted best note based on frequencies for that pattern and position.
+2. Modify the previous with a notion of most likely next note given the position. This could also be a bit of lookahead to determine the most likely next note and make it an internal pattern connecting note as opposed to 3 below.
+3. Determine the best 'connecting' note. That is, the note that is the last note in a given pattern. This would involve looking behind to the last note played and looking ahead to the next note to be played to determine what should come in between.
+
+## Determine the most likely next note

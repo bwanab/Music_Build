@@ -22,7 +22,8 @@ defmodule MusicBuild.MixProject do
   defp deps do
     [
       {:music_prims, path: "../music_prims"},
-      {:midifile, path: "../elixir-midifile"}
+      {:midifile, path: "../elixir-midifile"},
+      {:better_weighted_random, "~> 0.1"}
     ]
   end
 end

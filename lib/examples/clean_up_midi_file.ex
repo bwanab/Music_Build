@@ -31,13 +31,15 @@ defmodule MusicBuild.Examples.CleanUpMidiFile do
       end
     end)
     outpath = Path.join(Path.dirname(pathname), "bumped_octave_" <> Path.basename(pathname))
-    write_midi_file([new_sonorities], outpath)
+    write_midi_file([new_sonorities], outpath, ticks_per_quarter_note: seq.ticks_per_quarter_note, bpm: Sequence.bpm(seq))
   end
 
-  def write_midi_file(notes, outpath) do
+  def write_midi_file(notes, outpath, opts \\ []) do
+    tpqn = Keyword.get(opts, :ticks_per_quarter_note, 960)
+    bpm = Keyword.get(opts, :bpm, 110)
     name = Path.basename(outpath, Path.extname(outpath))
     tracks = Enum.map(notes, fn track -> TrackBuilder.new(name, track, 960) end)
-    sfs = Sequence.new(name, 110, tracks, 960)
+    sfs = Sequence.new(name, bpm, tracks, tpqn)
     Midifile.write(sfs, outpath)
   end
 
