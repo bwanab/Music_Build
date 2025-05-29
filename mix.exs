@@ -5,9 +5,10 @@ defmodule MusicBuild.MixProject do
     [
       app: :music_build,
       version: "0.1.0",
-      elixir: "~> 1.15",
+      elixir: "~> 1.18",
       start_permanent: Mix.env() == :prod,
-      deps: deps()
+      deps: deps(),
+      package: package()
     ]
   end
 
@@ -18,11 +19,19 @@ defmodule MusicBuild.MixProject do
     ]
   end
 
+    defp package do
+    [
+      licenses: ["MIT"],
+      links: %{"GitHub" => "https://github.com/bwanab/music_build"}
+    ]
+  end
+
+
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:music_prims, path: "../music_prims"},
-      {:midifile, path: "../elixir-midifile"},
+      {:music_prims, github: "bwanab/music_prims"},
+      {:midifile, github: "bwanab/elixir-midifile"},
       {:better_weighted_random, "~> 0.1"}
     ]
   end
