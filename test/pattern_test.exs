@@ -4,8 +4,7 @@ defmodule PatternTest do
 
   test "gather groups of notes into a map based on a pattern" do
     seq = Midifile.read("test/quantized_blues_bass.mid")
-    track = Enum.at(seq.tracks, 0)
-    sonorities = MapEvents.track_to_sonorities(track)
+    sonorities = MapEvents.track_to_sonorities(seq, 0)
     assert length(sonorities) == 768
     pattern = [:I, :IV, :I, :I, :IV, :IV, :I, :I, :V, :IV, :I, :V]
     lines = Enum.chunk_every(sonorities, 12 * 8)

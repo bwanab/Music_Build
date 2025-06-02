@@ -127,8 +127,14 @@ defmodule MapEventsTest do
     ]
 
     track = %Track{events: events}
+    sequence = %Midifile.Sequence{
+      tracks: [track],
+      ticks_per_quarter_note: 960,
+      format: 1,
+      time_basis: :metrical_time
+    }
 
-    sonorities = MapEvents.track_to_sonorities(track)
+    sonorities = MapEvents.track_to_sonorities(sequence, 0)
 
     # We should have 5 sonorities: 3 notes, 1 rest, 1 note
     assert length(sonorities) == 5
@@ -158,16 +164,22 @@ defmodule MapEventsTest do
     ]
 
     track = %Track{events: events}
+    sequence = %Midifile.Sequence{
+      tracks: [track],
+      ticks_per_quarter_note: 960,
+      format: 1,
+      time_basis: :metrical_time
+    }
 
     # Test without chord tolerance - should get separate notes
-    sonorities_no_tolerance = MapEvents.track_to_sonorities(track, chord_tolerance: 0)
+    sonorities_no_tolerance = MapEvents.track_to_sonorities(sequence, 0, chord_tolerance: 0)
     types_no_tolerance = Enum.map(sonorities_no_tolerance, &Sonority.type/1)
     # Without tolerance, we might get a mix of notes and chords depending on timing
     note_and_chord_count = Enum.count(types_no_tolerance, fn t -> t == :note || t == :chord end)
     assert note_and_chord_count >= 2
 
     # Test with chord tolerance - should identify the chord
-    sonorities_with_tolerance = MapEvents.track_to_sonorities(track, chord_tolerance: 10)
+    sonorities_with_tolerance = MapEvents.track_to_sonorities(sequence, 0, chord_tolerance: 10)
 
     # Should have at least one chord
     types_with_tolerance = Enum.map(sonorities_with_tolerance, &Sonority.type/1)
@@ -195,8 +207,14 @@ defmodule MapEventsTest do
     ]
 
     track = %Track{events: events}
+    sequence = %Midifile.Sequence{
+      tracks: [track],
+      ticks_per_quarter_note: 960,
+      format: 1,
+      time_basis: :metrical_time
+    }
 
-    sonorities = MapEvents.track_to_sonorities(track)
+    sonorities = MapEvents.track_to_sonorities(sequence, 0)
 
     # Basic validation - we should have some sonorities
     assert length(sonorities) > 0
@@ -213,10 +231,9 @@ defmodule MapEventsTest do
   test "track_to_sonorities processes test_sonorities.mid with all sonority types" do
     # Load the test file that contains examples of all three sonority types
     sequence = Midifile.read("test/test_sonorities.mid")
-    track = Enum.at(sequence.tracks, 0)
 
     # Map to sonorities
-    sonorities = MapEvents.track_to_sonorities(track)
+    sonorities = MapEvents.track_to_sonorities(sequence, 0)
 
     # Verify we have all three types of sonorities
     types = Enum.map(sonorities, &Sonority.type/1)

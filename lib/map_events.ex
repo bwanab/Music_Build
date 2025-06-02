@@ -45,10 +45,10 @@ defmodule MapEvents do
   and properly accounts for rests between sound events.
 
   ## Parameters
-    * `track` - A `Midifile.Track` struct containing MIDI events
+    * `sequence` - A `Midifile.Sequence` struct containing the MIDI sequence
+    * `track_number` - The index (0-based) of the track to process
     * `opts` - Options map with the following possible keys:
       * `:chord_tolerance` - Time in ticks within which notes are considered part of the same chord (default: 0)
-      * `:ticks_per_quarter_note` - The PPQN/TPQN time division to use (default: 960)
 
   ## Returns
     * A list of Sonority protocol implementations (Note, Chord, Rest) in chronological order
@@ -56,19 +56,20 @@ defmodule MapEvents do
   ## Examples
 
       # Basic usage with default options
-      sonorities = Midifile.MapEvents.track_to_sonorities(track)
+      sonorities = Midifile.MapEvents.track_to_sonorities(sequence, 0)
 
-      # With custom chord tolerance and PPQN
-      sonorities = Midifile.MapEvents.track_to_sonorities(track, %{
-        chord_tolerance: 10,  # Notes within 10 ticks are considered part of the same chord
-        ticks_per_quarter_note: sequence.ticks_per_quarter_note
-      })
+      # With custom chord tolerance
+      sonorities = Midifile.MapEvents.track_to_sonorities(sequence, 0, chord_tolerance: 10)
   """
-  @spec track_to_sonorities(Midifile.Track, keyword()) :: [Sonority]
-  def track_to_sonorities(track, opts \\ []) do
+  @spec track_to_sonorities(Midifile.Sequence, integer(), keyword()) :: [Sonority]
+  def track_to_sonorities(sequence, track_number, opts \\ []) do
     # Default options
     chord_tolerance = Keyword.get(opts, :chord_tolerance, 0)
-    tpqn = Keyword.get(opts, :ticks_per_quarter_note, Defaults.default_ppqn)
+    tpqn = sequence.ticks_per_quarter_note
+    
+    # Get the specified track
+    track = Enum.at(sequence.tracks, track_number)
+    
     # First, calculate absolute start and end times for all notes
     note_events = identify_note_events(track.events)
 

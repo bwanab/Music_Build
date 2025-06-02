@@ -15,8 +15,7 @@ alias WeightedRandom
 
 def compute_probability_table() do
   seq = Midifile.read(Path.join(@test_dir, "quantized_blues_bass.mid"))
-  track = Enum.at(seq.tracks, 0)
-  sonorities = MapEvents.track_to_sonorities(track)
+  sonorities = MapEvents.track_to_sonorities(seq, 0)
   chunks = Enum.chunk_every(sonorities, 12*8)
 
   # Now, we use the 12-bar chord pattern to break down the lines into chord groupings. That is, we are gathering all the notes as they were played for each of the 3 chords in the progression in the order that they were played. This means in each of the individual lists, we've got 8 notes that are the notes played in their respective positions of each run. This grouping allows us to understand the most likely note to be played in each note position. My prior belief is that the first note is most likely to be the root of the chord and the note is a 'connecting' note from one chord to the next. I have no prior about positions 2-7 (one based).
