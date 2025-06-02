@@ -1,10 +1,8 @@
 defmodule MusicBuild.Examples.MidiFromScratch do
-  alias Midifile.Sequence
-  alias Midifile.Writer
-  alias MusicBuild.TrackBuilder
   import Scale
   alias Rest
   alias Arpeggio
+  import MusicBuild.Util
 
   # creates a C major scale where each note has a duration of 1 quarter note and writes it to a midifile.
   def midifile_from_scratch(out_type \\ :midi) do
@@ -96,26 +94,6 @@ defmodule MusicBuild.Examples.MidiFromScratch do
     write_file([track1, track2], "two tracks", out_type)
   end
 
-  @spec write_midi_file([[Sonority.t()]], binary()) :: :ok
-  def write_midi_file(notes, name) do
-    tracks = Enum.map(notes, fn track -> TrackBuilder.new(name, track, 960) end)
-    sfs = Sequence.new(name, 110, tracks, 960)
-    Writer.write(sfs, "test/#{name}.mid")
-  end
-
-  @spec write_file([Sonority.t()], binary(), atom()) :: :ok
-  def write_file(notes, name, out_type \\ :midi) do
-    case out_type do
-      :midi -> write_midi_file(notes, name)
-      :lily -> MusicBuild.LilyBuild.write(notes, "test/#{name}.ly",
-                midi: true,
-                title: name,
-                out_path: "./test",
-                tempo: 110,
-                time_sig: "4/4"
-              )
-    end
-  end
 
   @spec add_rest_at_keeping_total_duration([Sonority.t()], integer(), number()) :: {[Sonority.t()], float()}
   def add_rest_at_keeping_total_duration(ms, pos, duration) do

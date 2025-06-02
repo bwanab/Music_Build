@@ -1,6 +1,6 @@
 defmodule MusicBuild.Examples.ArpeggioProgressions do
 
-  alias MusicBuild.Examples.MidiFromScratch
+  import MusicBuild.Util
 
 
   def build_chords(progression, key, octave, duration) do
@@ -55,7 +55,7 @@ defmodule MusicBuild.Examples.ArpeggioProgressions do
                     |> List.duplicate(repeats)
                     |> List.flatten()
 
-    MidiFromScratch.write_file([all_chords, all_arpeggios, bass_arpeggios], name, out_type)
+    write_file([all_chords, all_arpeggios, bass_arpeggios], name, out_type)
   end
 
   def pachelbels_canon() do

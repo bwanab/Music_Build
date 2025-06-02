@@ -4,11 +4,11 @@
 
 ```elixir
 Mix.install([
-  {:music_prims, github: "bwanab/music_prims", override: true},
-  {:midifile, github: "bwanab/elixir-midifile", override: true},
-  {:music_build, github: "bwanab/music_build", override: true},
+  {:music_prims, github: "bwanab/music_prims"},
+  {:midifile, github: "bwanab/elixir-midifile", force: true},
+  {:music_build, github: "bwanab/music_build"},
   {:better_weighted_random, "~> 0.1.0"}
-], force: true )
+])
 ```
 
 ## Introduction
@@ -151,4 +151,139 @@ Interesting. I loaded this midi file into the same project that the original bas
 2. Modify the previous with a notion of most likely next note given the position. This could also be a bit of lookahead to determine the most likely next note and make it an internal pattern connecting note as opposed to 3 below.
 3. Determine the best 'connecting' note. That is, the note that is the last note in a given pattern. This would involve looking behind to the last note played and looking ahead to the next note to be played to determine what should come in between.
 
-## Determine the most likely next note
+## Identify pattern frequencies and work with those.
+
+```elixir
+all_patterns = Enum.flat_map(interval_map, fn {_k, v} -> v end)
+```
+
+```elixir
+uniq_patterns = Enum.uniq(all_patterns)
+```
+
+```elixir
+pattern_freqs = Enum.map(Enum.group_by(all_patterns, fn x -> x end), fn {pattern, group} ->
+  {pattern, length(group)}
+  end) |> Enum.sort(fn {_g1, p1},{_g2, p2} -> p1 > p2 end)
+```
+
+```elixir
+{pat, _} = Enum.at(pattern_freqs, 0)
+```
+
+```elixir
+Enum.shuffle(pat)
+```
+
+So, here all we're doing is taking one measure's pattern, in this case the most repeated one, and shuffling it for each new chord. Strangely enough, it actually doesn't sound bad.
+
+```elixir
+notes = Enum.flat_map(pattern, fn rn ->
+  [_, root_number] = Map.get(root_map, rn)
+  Enum.map(Enum.shuffle(pat), fn interval ->
+    MidiNote.midi_to_note(root_number + interval, 0.5, 127)    
+  end)
+end)
+```
+
+```elixir
+MusicBuild.Examples.CleanUpMidiFile.write_midi_file([notes], 
+  Path.join(test_dir, "generated_test_bass.mid"))
+```
+
+Next, we'll take the random weighted pattern and shuffle it for each measure.
+
+```elixir
+defmodule TestPat do
+
+  def do_one_pattern(pat, roman_numeral, root_map) do
+      [_, root_number] = Map.get(root_map, roman_numeral)
+      Enum.map(Enum.shuffle(pat), fn interval ->
+        MidiNote.midi_to_note(root_number + interval, 0.5, 127)    
+      end)
+  end
+
+  @doc """
+  inputs: pattern is a group of roman numerals like [:I, :IV, :ii, ...]
+          pattern_freqs is a frequency table of the bass lines from the sample midi file
+          root_map is a map of the notes associated with the pattern roman numerals
+  """
+  def do_pattern(pattern, pattern_freqs, root_map) do
+    Enum.flat_map(pattern, fn roman_numeral -> 
+      do_one_pattern(WeightedRandom.take_one(pattern_freqs), roman_numeral, root_map)  
+    end)
+  end
+end
+```
+
+```elixir
+TestPat.do_one_pattern(pat, :I, root_map)
+```
+
+```elixir
+r_notes = TestPat.do_pattern(pattern, pattern_freqs, root_map)
+```
+
+```elixir
+MusicBuild.Examples.CleanUpMidiFile.write_midi_file([r_notes], 
+  Path.join(test_dir, "generated_randomized_test_bass.mid"))
+```
+
+Well, this kind of sounds like one would imagine a bad random bass player who knew how to stay in key would sound - not too good.
+
+## Explore next note
+
+```elixir
+all_intervals = Enum.flat_map(interval_map, fn {_k, v} -> List.flatten(v) end)
+```
+
+```elixir
+prev_next = Enum.map(Enum.chunk_every(all_intervals, 3, 1), fn l ->
+  cond do
+    length(l) == 3 -> 
+      [prev, val, next] = l
+      {{prev, next}, val}
+    true -> 
+      IO.inspect(l)
+      [prev, val] = l
+      {{prev, 0}, val}
+  end
+  
+  end)
+```
+
+```elixir
+prev_next_map = Map.new(Enum.reduce(prev_next, %{}, fn {k, v}, acc ->
+  Map.put(acc, k, [v|Map.get(acc, k, [])])
+end)
+|> Enum.map(fn {k, v} -> 
+  {k, Enum.reduce(v, %{}, fn value, acc ->
+    Map.put(acc, value, Map.get(acc, value, 0) + 1) end)}
+  end))
+```
+
+```elixir
+pattern
+```
+
+```elixir
+base_lines_2 = Enum.flat_map(0..7, fn _ ->
+Enum.flat_map(pattern, fn rn -> 
+  Enum.map(0..7, fn pos ->
+    [_, root_number] = Map.get(root_map, rn)
+    prev = WeightedRandom.take_one(get_in(probabilities_table, [rn, Integer.mod(pos - 1, 8)]))
+    next = WeightedRandom.take_one(get_in(probabilities_table, [rn, Integer.mod(pos + 1, 8)]))
+    # default to the root if no prev/next pair is found
+    interval = WeightedRandom.take_one(Map.get(prev_next_map, {prev, next}, %{0 => 1}))
+    MidiNote.midi_to_note(root_number + interval, 0.5, 127)
+  end)
+  end)
+end)
+```
+
+```elixir
+MusicBuild.Examples.CleanUpMidiFile.write_midi_file([base_lines_2], 
+  Path.join(test_dir, "generated_prev_next_blues_bass.mid"))
+```
+
+That isn't bad at all. We've got a winner if I don't think of anything else.

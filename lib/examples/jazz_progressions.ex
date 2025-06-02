@@ -1,9 +1,9 @@
 defmodule MusicBuild.Examples.JazzProgressions do
 
-  alias MusicBuild.Examples.MidiFromScratch
+  import MusicBuild.Util
 
 
-  @spec do_chord_progression([atom()], atom(), boolean(), String.t(), atom()) :: :ok
+  @spec do_chord_progression([atom()], atom(), String.t(), boolean(), atom()) :: :ok
   def do_chord_progression(progression, key \\ :C, name \\ "jazz_progression", add_last \\ true, out_type \\ :lily) do
     # Get chord symbols (Roman numerals) from ChordPrims
 
@@ -14,22 +14,27 @@ defmodule MusicBuild.Examples.JazzProgressions do
     end)
 
     last = Enum.at(chords, 0)
-    chord_length = length(Sonority.to_notes(last))
     all_chords = if add_last do
       chords ++ [Chord.copy(last, inversion: 2, octave: Chord.octave(last) - 1) ]
     else
       chords
     end
 
+    chord_progression(all_chords, name, out_type)
+  end
 
-    pattern = case chord_length do
-                4 -> [1,2,3,4,3,2,1,2]
-                3 -> [1,3,2,3,2,3,2,1]
-              end
+  def chord_progression(all_chords, name \\ "jazz progression", out_type \\ :lily) do
+
 
 
     raw_bass = Enum.map(Enum.with_index(all_chords),
       fn {c, _i} ->
+
+      chord_length = length(Sonority.to_notes(c))
+      pattern = case chord_length do
+                  4 -> [1,2,3,4,3,2,1,2]
+                  3 -> [1,3,2,3,2,3,2,1]
+                end
 
         # this code is somewhat of an abomination. I'm simply trying to find the note
         # to connect adjacent bass arpeggios. In particular, the midi note conversions
@@ -54,7 +59,8 @@ defmodule MusicBuild.Examples.JazzProgressions do
 
     bass = List.flatten(raw_bass)
 
-    MidiFromScratch.write_file([all_chords, bass], name, out_type)
+    write_file([all_chords, bass], name, out_type)
+
   end
 
   def basic_jazz() do
