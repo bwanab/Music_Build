@@ -10,7 +10,7 @@ alias WeightedRandom
 
 # First, we'll read the midi file with our bass lines and split them into individual lines. We're defining a 'line' as one 12-bar segment.
 
-@test_dir Path.expand("./test")
+@test_dir Path.expand("./midi")
 @pattern [:I, :IV, :I, :I, :IV, :IV, :I, :I, :V, :IV, :I, :V]
 
 def compute_probability_table() do

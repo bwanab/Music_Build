@@ -84,7 +84,7 @@ defmodule FilterTest do
   end
 
   test "a midi file that illustrates a bug in filtering on duration" do
-    seq = Midifile.Reader.read("test/shorter_filter_test.mid")
+    seq = Midifile.Reader.read("midi/shorter_filter_test.mid")
     sonorities = MapEvents.track_to_sonorities(seq, 0)
     filtered_seq = Filter.process_notes(seq, 0, fn note -> note.duration < 0.2 end, :remove)
     filtered_sonorities = MapEvents.track_to_sonorities(filtered_seq, 0)

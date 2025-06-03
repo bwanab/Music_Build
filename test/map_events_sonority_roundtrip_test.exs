@@ -9,7 +9,7 @@ defmodule Midifile.MapEventsSonorityRoundtripTest do
 
   test "sonorities round trip through MIDI conversion" do
     # 1) Read the midi file test/test_sonorities.mid
-    sequence = Midifile.read("test/test_sonorities.mid")
+    sequence = Midifile.read("midi/test_sonorities.mid")
 
     # 2) Convert the only track to sonorities
     original_sonorities = MapEvents.track_to_sonorities(sequence, 0)
@@ -81,8 +81,8 @@ defmodule Midifile.MapEventsSonorityRoundtripTest do
       Note.new(:G, 4, 1.5),     # dotted quarternote
       Note.new(:Gb, 4, 3)     # dotted halfnote
     ]
-    MusicBuild.LilyBuild.write([sonorities], "test/round_trip_dotted.ly", midi: true, out_path: "./test")
-    seq = Midifile.Reader.read("test/round_trip_dotted.midi")
+    MusicBuild.LilyBuild.write([sonorities], "midi/round_trip_dotted.ly", midi: true, out_path: "./midi")
+    seq = Midifile.Reader.read("midi/round_trip_dotted.midi")
     derived_sonorities = MapEvents.track_to_sonorities(seq, 0, chord_tolerance: 10)
     assert length(sonorities) == length(derived_sonorities)
     Enum.map(Enum.zip(sonorities, derived_sonorities), fn {s1, s2} ->

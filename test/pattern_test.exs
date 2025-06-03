@@ -3,7 +3,7 @@ defmodule PatternTest do
   alias MusicBuild.Examples.PatternEvaluator
 
   test "gather groups of notes into a map based on a pattern" do
-    seq = Midifile.read("test/quantized_blues_bass.mid")
+    seq = Midifile.read("midi/quantized_blues_bass.mid")
     sonorities = MapEvents.track_to_sonorities(seq, 0)
     assert length(sonorities) == 768
     pattern = [:I, :IV, :I, :I, :IV, :IV, :I, :I, :V, :IV, :I, :V]

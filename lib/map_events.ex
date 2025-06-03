@@ -66,10 +66,10 @@ defmodule MapEvents do
     # Default options
     chord_tolerance = Keyword.get(opts, :chord_tolerance, 0)
     tpqn = sequence.ticks_per_quarter_note
-    
+
     # Get the specified track
     track = Enum.at(sequence.tracks, track_number)
-    
+
     # First, calculate absolute start and end times for all notes
     note_events = identify_note_events(track.events)
 
@@ -448,4 +448,19 @@ defmodule MapEvents do
     {_score, best_match} = Enum.max_by(scored_matches, fn {score, _} -> score end)
     best_match
   end
+
+  def get_program_changes(seq, track_num) do
+    track = Enum.at(seq.tracks, track_num)
+    events = track.events
+    Enum.filter(events, fn e -> e.symbol == :on end)
+    |> Enum.map(fn e ->
+      Integer.to_string(Enum.at(e.bytes, 0), 2)
+      |> String.slice(4..7)
+      |> String.to_integer(2)
+    end)
+    |> Enum.uniq()
+    |> Enum.sort()
+  end
+
+
 end

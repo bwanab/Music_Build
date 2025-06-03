@@ -230,7 +230,7 @@ defmodule MapEventsTest do
 
   test "track_to_sonorities processes test_sonorities.mid with all sonority types" do
     # Load the test file that contains examples of all three sonority types
-    sequence = Midifile.read("test/test_sonorities.mid")
+    sequence = Midifile.read("midi/test_sonorities.mid")
 
     # Map to sonorities
     sonorities = MapEvents.track_to_sonorities(sequence, 0)

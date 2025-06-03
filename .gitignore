@@ -22,9 +22,9 @@ music_build-*.tar
 # Temporary files, for example, from tests.
 /tmp/
 
-/test/*.midi
-/test/*.mid
-/test/*.ly
-/test/*.pdf
+/midi/*.midi
+/midi/*.mid
+/midi/*.ly
+/midi/*.pdf
 .DS_Store
 .formatter.exs

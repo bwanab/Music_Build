@@ -3,13 +3,6 @@ defmodule MusicBuild.Util do
   alias Midifile.Sequence
   alias MusicBuild.TrackBuilder
 
-  # @spec write_midi_file([[Sonority.t()]], binary()) :: :ok
-  # def write_midi_file(notes, name) do
-  #   tracks = Enum.map(notes, fn track -> TrackBuilder.new(name, track, 960) end)
-  #   sfs = Sequence.new(name, 110, tracks, 960)
-  #   Writer.write(sfs, "test/#{name}.mid")
-  # end
-
   def write_midi_file(notes, outpath, opts \\ []) do
     tpqn = Keyword.get(opts, :ticks_per_quarter_note, 960)
     bpm = Keyword.get(opts, :bpm, 110)
@@ -25,10 +18,10 @@ defmodule MusicBuild.Util do
       :midi -> write_midi_file(notes, name, opts)
       :lily ->
         midi? = Keyword.get(opts, :midi, true)
-        out_path = Keyword.get(opts, :out_path, "./test")
+        out_path = Keyword.get(opts, :out_path, "./midi")
         tempo = Keyword.get(opts, :bpm, 110)
         time_sig = Keyword.get(opts, :time_sig, "4/4")
-        MusicBuild.LilyBuild.write(notes, "test/#{name}.ly",
+        MusicBuild.LilyBuild.write(notes, "#{out_path}/#{name}.ly",
                 midi: midi?,
                 title: name,
                 out_path: out_path,
