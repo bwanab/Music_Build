@@ -33,16 +33,16 @@ defmodule MapEvents do
   alias Midifile.Defaults
 
   @doc """
-  Maps a track's MIDI events to a sequence of Sonority types (Note, Chord, or Rest).
+  Maps a track's MIDI events to separate channel tracks, each containing a sequence of Sonority types.
 
-  This function analyzes a MIDI track and extracts its musical content as a series
-  of sonorities that represent the fundamental musical elements:
+  This function analyzes a MIDI track and separates it by channel, creating individual
+  tracks for each active channel. Each channel track contains sonorities that represent:
   - Notes: Single pitches with duration and velocity
-  - Chords: Multiple notes sounding together with a common duration
+  - Chords: Multiple notes sounding together with a common duration (within the same channel)
   - Rests: Periods of silence with a duration
 
-  The algorithm handles overlapping notes, identifying chords based on timing proximity,
-  and properly accounts for rests between sound events.
+  This approach preserves instrument separation since MIDI channels typically represent
+  different instruments or parts.
 
   ## Parameters
     * `sequence` - A `Midifile.Sequence` struct containing the MIDI sequence
@@ -51,17 +51,21 @@ defmodule MapEvents do
       * `:chord_tolerance` - Time in ticks within which notes are considered part of the same chord (default: 0)
 
   ## Returns
-    * A list of Sonority protocol implementations (Note, Chord, Rest) in chronological order
+    * A map where keys are channel numbers (0-15) and values are lists of Sonority protocol implementations
 
   ## Examples
 
       # Basic usage with default options
-      sonorities = Midifile.MapEvents.track_to_sonorities(sequence, 0)
+      channel_tracks = Midifile.MapEvents.track_to_sonorities(sequence, 0)
+      
+      # Access individual channel tracks
+      piano_track = channel_tracks[0]  # Channel 0 sonorities
+      drums_track = channel_tracks[9]  # Channel 9 (drums) sonorities
 
       # With custom chord tolerance
-      sonorities = Midifile.MapEvents.track_to_sonorities(sequence, 0, chord_tolerance: 10)
+      channel_tracks = Midifile.MapEvents.track_to_sonorities(sequence, 0, chord_tolerance: 10)
   """
-  @spec track_to_sonorities(Midifile.Sequence, integer(), keyword()) :: [Sonority]
+  @spec track_to_sonorities(Midifile.Sequence, integer(), keyword()) :: %{integer() => [Sonority]}
   def track_to_sonorities(sequence, track_number, opts \\ []) do
     # Default options
     chord_tolerance = Keyword.get(opts, :chord_tolerance, 0)
@@ -73,8 +77,14 @@ defmodule MapEvents do
     # First, calculate absolute start and end times for all notes
     note_events = identify_note_events(track.events)
 
-    # Group notes into chords and rests
-    group_into_sonorities(note_events, chord_tolerance, tpqn)
+    # Group note events by channel
+    notes_by_channel = Enum.group_by(note_events, fn note -> note.channel end)
+
+    # Create sonorities for each channel
+    Enum.into(notes_by_channel, %{}, fn {channel, channel_notes} ->
+      sonorities = group_into_sonorities(channel_notes, chord_tolerance, tpqn)
+      {channel, sonorities}
+    end)
   end
 
   @doc """

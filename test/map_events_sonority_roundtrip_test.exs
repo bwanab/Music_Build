@@ -12,7 +12,8 @@ defmodule Midifile.MapEventsSonorityRoundtripTest do
     sequence = Midifile.read("midi/test_sonorities.mid")
 
     # 2) Convert the only track to sonorities
-    original_sonorities = MapEvents.track_to_sonorities(sequence, 0)
+    original_channel_tracks = MapEvents.track_to_sonorities(sequence, 0)
+    original_sonorities = original_channel_tracks[0]  # Get channel 0 sonorities
 
     # 3) Write those sonorities out as a test/temp.mid file
     temp_track = TrackBuilder.new("Sonorities", original_sonorities, sequence.ticks_per_quarter_note)
@@ -26,7 +27,8 @@ defmodule Midifile.MapEventsSonorityRoundtripTest do
 
     # 4) Read test/temp.mid in as a new sequence and convert its only track to sonorities
     new_sequence = Midifile.read("test/temp.mid")
-    new_sonorities = MapEvents.track_to_sonorities(new_sequence, 0)
+    new_channel_tracks = MapEvents.track_to_sonorities(new_sequence, 0)
+    new_sonorities = new_channel_tracks[0]  # Get channel 0 sonorities
 
     # 5) The sonorities from step 2 should be identical to those from step 4
 
@@ -83,7 +85,8 @@ defmodule Midifile.MapEventsSonorityRoundtripTest do
     ]
     MusicBuild.LilyBuild.write([sonorities], "midi/round_trip_dotted.ly", midi: true, out_path: "./midi")
     seq = Midifile.Reader.read("midi/round_trip_dotted.midi")
-    derived_sonorities = MapEvents.track_to_sonorities(seq, 0, chord_tolerance: 10)
+    derived_channel_tracks = MapEvents.track_to_sonorities(seq, 0, chord_tolerance: 10)
+    derived_sonorities = derived_channel_tracks[0]  # Get channel 0 sonorities
     assert length(sonorities) == length(derived_sonorities)
     Enum.map(Enum.zip(sonorities, derived_sonorities), fn {s1, s2} ->
       assert Sonority.type(s1) == Sonority.type(s2)

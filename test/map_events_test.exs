@@ -134,7 +134,8 @@ defmodule MapEventsTest do
       time_basis: :metrical_time
     }
 
-    sonorities = MapEvents.track_to_sonorities(sequence, 0)
+    channel_tracks = MapEvents.track_to_sonorities(sequence, 0)
+    sonorities = channel_tracks[0]  # Get channel 0 sonorities
 
     # We should have 5 sonorities: 3 notes, 1 rest, 1 note
     assert length(sonorities) == 5
@@ -172,14 +173,16 @@ defmodule MapEventsTest do
     }
 
     # Test without chord tolerance - should get separate notes
-    sonorities_no_tolerance = MapEvents.track_to_sonorities(sequence, 0, chord_tolerance: 0)
+    channel_tracks_no_tolerance = MapEvents.track_to_sonorities(sequence, 0, chord_tolerance: 0)
+    sonorities_no_tolerance = channel_tracks_no_tolerance[0]  # Get channel 0 sonorities
     types_no_tolerance = Enum.map(sonorities_no_tolerance, &Sonority.type/1)
     # Without tolerance, we might get a mix of notes and chords depending on timing
     note_and_chord_count = Enum.count(types_no_tolerance, fn t -> t == :note || t == :chord end)
     assert note_and_chord_count >= 2
 
     # Test with chord tolerance - should identify the chord
-    sonorities_with_tolerance = MapEvents.track_to_sonorities(sequence, 0, chord_tolerance: 10)
+    channel_tracks_with_tolerance = MapEvents.track_to_sonorities(sequence, 0, chord_tolerance: 10)
+    sonorities_with_tolerance = channel_tracks_with_tolerance[0]  # Get channel 0 sonorities
 
     # Should have at least one chord
     types_with_tolerance = Enum.map(sonorities_with_tolerance, &Sonority.type/1)
@@ -214,7 +217,8 @@ defmodule MapEventsTest do
       time_basis: :metrical_time
     }
 
-    sonorities = MapEvents.track_to_sonorities(sequence, 0)
+    channel_tracks = MapEvents.track_to_sonorities(sequence, 0)
+    sonorities = channel_tracks[0]  # Get channel 0 sonorities
 
     # Basic validation - we should have some sonorities
     assert length(sonorities) > 0
@@ -233,7 +237,8 @@ defmodule MapEventsTest do
     sequence = Midifile.read("midi/test_sonorities.mid")
 
     # Map to sonorities
-    sonorities = MapEvents.track_to_sonorities(sequence, 0)
+    channel_tracks = MapEvents.track_to_sonorities(sequence, 0)
+    sonorities = channel_tracks[0]  # Get channel 0 sonorities
 
     # Verify we have all three types of sonorities
     types = Enum.map(sonorities, &Sonority.type/1)
@@ -284,5 +289,55 @@ defmodule MapEventsTest do
     rest = Enum.find(sonorities, fn s -> Sonority.type(s) == :rest end)
     assert rest != nil
     assert Sonority.duration(rest) == 1
+  end
+
+  test "track_to_sonorities separates multi-channel MIDI file into channel tracks" do
+    # Test with Diana Krall MIDI file that has multiple channels
+    sequence = Midifile.read("midi/Diana_Krall_-_The_Look_Of_Love.mid")
+    
+    channel_tracks = MapEvents.track_to_sonorities(sequence, 0)
+    
+    # Should have 8 channels (0, 1, 2, 3, 4, 5, 6, 9)
+    assert map_size(channel_tracks) == 8
+    
+    # Check that expected channels are present
+    expected_channels = [0, 1, 2, 3, 4, 5, 6, 9]
+    actual_channels = Map.keys(channel_tracks) |> Enum.sort()
+    assert actual_channels == expected_channels
+    
+    # Each channel should have sonorities
+    Enum.each(channel_tracks, fn {channel, sonorities} ->
+      assert length(sonorities) > 0, "Channel #{channel} should have sonorities"
+      
+      # All sonorities should be valid types
+      Enum.each(sonorities, fn sonority ->
+        type = Sonority.type(sonority)
+        assert type in [:note, :chord, :rest], "Invalid sonority type: #{type}"
+        assert Sonority.duration(sonority) > 0, "Sonority should have positive duration"
+      end)
+    end)
+    
+    # Channel 9 (drums) should be the most active
+    drums_count = length(channel_tracks[9])
+    other_channels = Map.delete(channel_tracks, 9)
+    Enum.each(other_channels, fn {channel, sonorities} ->
+      assert length(sonorities) < drums_count, 
+        "Channel #{channel} has more events than drums channel"
+    end)
+    
+    # Channel 2 should be very active (second most active melodic channel)
+    channel_2_count = length(channel_tracks[2])
+    assert channel_2_count > 1000, "Channel 2 should have many sonorities"
+    
+    # Verify that we get different results than treating all channels as one
+    # (This ensures we're actually separating channels)
+    total_sonorities_count = Enum.map(channel_tracks, fn {_, sonorities} -> 
+      length(sonorities) 
+    end) |> Enum.sum()
+    
+    # Should have more total sonorities when separated than when combined
+    # because each channel has its own timeline
+    assert total_sonorities_count > 5000, 
+      "Separated channels should have substantial total sonorities"
   end
 end
