@@ -80,12 +80,29 @@ defmodule MapEvents do
     # Group note events by channel
     notes_by_channel = Enum.group_by(note_events, fn note -> note.channel end)
 
-    # Create sonorities for each channel
+    # Calculate channel delays using note-on event timing (matches quarter_notes_until_first_flute)
+    note_on_events = read_note_on_events(sequence, track_number)
+    channel_delays = calculate_channel_delays_from_note_on_events(note_on_events, tpqn)
+
+    # Create sonorities for each channel with proper timing
     Enum.into(notes_by_channel, %{}, fn {channel, channel_notes} ->
       sonorities = group_into_sonorities(channel_notes, chord_tolerance, tpqn)
-      {channel, sonorities}
+      
+      # Get the delay for this channel based on note-on events
+      delay_quarter_notes = Map.get(channel_delays, channel, 0)
+      
+      # If this channel starts later, prepend a rest sonority
+      final_sonorities = if delay_quarter_notes > 0 do
+        initial_rest = Rest.new(delay_quarter_notes)
+        [initial_rest | sonorities]
+      else
+        sonorities
+      end
+      
+      {channel, final_sonorities}
     end)
   end
+
 
   @doc """
   Identifies all note events in a track and calculates their absolute start/end times.
@@ -498,5 +515,28 @@ defmodule MapEvents do
     (read_note_on_events(seq, track_num)
     |> Enum.take_while(fn {channel, _} -> channel != 3 end)
     |> Enum.reduce(0, fn {_, delta}, acc -> acc + delta end)) / seq.ticks_per_quarter_note
+  end
+
+  @doc false
+  # Calculate delays for each channel based on note-on events
+  # Returns a map of channel -> delay_in_quarter_notes
+  # This matches the approach used by quarter_notes_until_first_flute
+  defp calculate_channel_delays_from_note_on_events(note_on_events, tpqn) do
+    # Group consecutive events by channel to find first appearance of each channel
+    {delays, _, _} = Enum.reduce(note_on_events, {%{}, 0, MapSet.new()}, fn {channel, delta}, {delays_acc, cumulative_time, seen_channels} ->
+      new_cumulative_time = cumulative_time + delta
+      
+      # If this is the first time we see this channel, record its delay
+      if not MapSet.member?(seen_channels, channel) do
+        delay_quarter_notes = cumulative_time / tpqn
+        new_delays = Map.put(delays_acc, channel, delay_quarter_notes)
+        new_seen = MapSet.put(seen_channels, channel)
+        {new_delays, new_cumulative_time, new_seen}
+      else
+        {delays_acc, new_cumulative_time, seen_channels}
+      end
+    end)
+    
+    delays
   end
 end
