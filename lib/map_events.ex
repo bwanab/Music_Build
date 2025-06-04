@@ -87,10 +87,10 @@ defmodule MapEvents do
     # Create sonorities for each channel with proper timing
     Enum.into(notes_by_channel, %{}, fn {channel, channel_notes} ->
       sonorities = group_into_sonorities(channel_notes, chord_tolerance, tpqn)
-      
+
       # Get the delay for this channel based on note-on events
       delay_quarter_notes = Map.get(channel_delays, channel, 0)
-      
+
       # If this channel starts later, prepend a rest sonority
       final_sonorities = if delay_quarter_notes > 0 do
         initial_rest = Rest.new(delay_quarter_notes)
@@ -98,7 +98,7 @@ defmodule MapEvents do
       else
         sonorities
       end
-      
+
       {channel, final_sonorities}
     end)
   end
@@ -503,18 +503,18 @@ defmodule MapEvents do
   def read_note_on_events(seq, track_num) do
     track = Enum.at(seq.tracks, track_num)
     events = track.events
-    Enum.filter(events, fn e -> e.symbol == :on end)
-    |> Enum.map(fn %Midifile.Event{delta_time: delta, bytes: [status, _high, _low]} ->
+    Enum.filter(events, fn e -> e.symbol == :on or e.symbol == :off or e.symbol == :controller end)
+    |> Enum.map(fn %Midifile.Event{symbol: symbol, delta_time: delta, bytes: [status, _high, _low]} ->
       {Integer.to_string(status, 2)
       |> String.slice(4..7)
-      |> String.to_integer(2), delta}
+      |> String.to_integer(2), delta, symbol}
     end)
   end
 
   def quarter_notes_until_first_flute(seq, track_num) do
     (read_note_on_events(seq, track_num)
-    |> Enum.take_while(fn {channel, _} -> channel != 3 end)
-    |> Enum.reduce(0, fn {_, delta}, acc -> acc + delta end)) / seq.ticks_per_quarter_note
+    |> Enum.take_while(fn {channel, _, symbol} -> not (channel == 3 and symbol == :on) end)
+    |> Enum.reduce(0, fn {_, delta, _}, acc -> acc + delta end)) / seq.ticks_per_quarter_note
   end
 
   @doc false
@@ -525,7 +525,7 @@ defmodule MapEvents do
     # Group consecutive events by channel to find first appearance of each channel
     {delays, _, _} = Enum.reduce(note_on_events, {%{}, 0, MapSet.new()}, fn {channel, delta}, {delays_acc, cumulative_time, seen_channels} ->
       new_cumulative_time = cumulative_time + delta
-      
+
       # If this is the first time we see this channel, record its delay
       if not MapSet.member?(seen_channels, channel) do
         delay_quarter_notes = cumulative_time / tpqn
@@ -536,7 +536,7 @@ defmodule MapEvents do
         {delays_acc, new_cumulative_time, seen_channels}
       end
     end)
-    
+
     delays
   end
 end
