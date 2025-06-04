@@ -6,8 +6,10 @@ defmodule MusicBuild.Util do
   def write_midi_file(notes, outpath, opts \\ []) do
     tpqn = Keyword.get(opts, :ticks_per_quarter_note, 960)
     bpm = Keyword.get(opts, :bpm, 110)
+    inst_names = Keyword.get(opts, :inst_names, Enum.map(notes, fn _ -> "UnNamed" end))
     name = Path.basename(outpath, Path.extname(outpath))
-    tracks = Enum.map(notes, fn track -> TrackBuilder.new(name, track, 960) end)
+
+    tracks = Enum.map(Enum.zip(notes, inst_names), fn {track, inst_name} -> TrackBuilder.new(inst_name, track, 960) end)
     sfs = Sequence.new(name, bpm, tracks, tpqn)
     Midifile.write(sfs, outpath)
   end

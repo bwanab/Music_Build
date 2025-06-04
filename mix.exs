@@ -32,7 +32,8 @@ defmodule MusicBuild.MixProject do
     [
       {:music_prims, github: "bwanab/music_prims"},
       {:midifile, github: "bwanab/elixir-midifile"},
-      {:better_weighted_random, "~> 0.1"}
+      {:better_weighted_random, "~> 0.1"},
+      {:csv, "~> 3.2"}
     ]
   end
 end

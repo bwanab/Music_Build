@@ -57,7 +57,7 @@ defmodule MapEvents do
 
       # Basic usage with default options
       channel_tracks = Midifile.MapEvents.track_to_sonorities(sequence, 0)
-      
+
       # Access individual channel tracks
       piano_track = channel_tracks[0]  # Channel 0 sonorities
       drums_track = channel_tracks[9]  # Channel 9 (drums) sonorities
@@ -460,17 +460,43 @@ defmodule MapEvents do
   end
 
   def get_program_changes(seq, track_num) do
+    mim = read_midi_instrument_map()
     track = Enum.at(seq.tracks, track_num)
     events = track.events
-    Enum.filter(events, fn e -> e.symbol == :on end)
-    |> Enum.map(fn e ->
-      Integer.to_string(Enum.at(e.bytes, 0), 2)
+    Enum.filter(events, fn e -> e.symbol == :program end)
+    |> Enum.map(fn %Midifile.Event{bytes: [high, low]} ->
+      {Integer.to_string(high, 2)
       |> String.slice(4..7)
-      |> String.to_integer(2)
+      |> String.to_integer(2), Map.get(mim, low)}
     end)
     |> Enum.uniq()
     |> Enum.sort()
+    |> Map.new
   end
 
+  def read_midi_instrument_map() do
+    File.stream!("midi_instrument_map.csv")
+    |> CSV.decode(headers: true)
+    |> Enum.map(fn {_, %{"Instrument" => inst, "PC" => pc}} ->
+        {String.to_integer(pc), inst}
+       end)
+    |> Map.new
+  end
 
+  def read_note_on_events(seq, track_num) do
+    track = Enum.at(seq.tracks, track_num)
+    events = track.events
+    Enum.filter(events, fn e -> e.symbol == :on end)
+    |> Enum.map(fn %Midifile.Event{delta_time: delta, bytes: [status, _high, _low]} ->
+      {Integer.to_string(status, 2)
+      |> String.slice(4..7)
+      |> String.to_integer(2), delta}
+    end)
+  end
+
+  def quarter_notes_until_first_flute(seq, track_num) do
+    (read_note_on_events(seq, track_num)
+    |> Enum.take_while(fn {channel, _} -> channel != 3 end)
+    |> Enum.reduce(0, fn {_, delta}, acc -> acc + delta end)) / seq.ticks_per_quarter_note
+  end
 end

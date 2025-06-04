@@ -1,0 +1,39 @@
+# Build Midi Map
+
+```elixir
+Mix.install(
+  [
+    {:explorer, "~> 0.10.0"},
+    {:kino_explorer, "~> 0.1.24"}
+  ]
+)
+```
+
+## Section
+
+```elixir
+require Explorer.DataFrame, as: DF
+require Explorer.Series, as: S
+```
+
+```elixir
+df = DF.from_csv!(Path.expand("~/src/music_build/midi_instrument_map.csv"), delimiter: ",")
+```
+
+```elixir
+df = DF.sort_by(df, col("PC"))
+```
+
+```elixir
+df1 = DF.transform(df, [names: ["PC"]], fn row -> 
+  r = row["PC"] - 1
+  %{PC: r}
+end)
+|> DF.select(["PC_1", "Instrument"])
+|> DF.rename(["PC", "Instrument"])
+
+```
+
+```elixir
+DF.to_csv!(df1, Path.expand("~/src/music_build/midi_instrument_map.csv"))
+```
