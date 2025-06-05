@@ -86,10 +86,10 @@ defmodule FilterTest do
   test "a midi file that illustrates a bug in filtering on duration" do
     seq = Midifile.Reader.read("midi/shorter_filter_test.mid")
     channel_tracks = MapEvents.track_to_sonorities(seq, 0)
-    sonorities = channel_tracks[0]  # Get channel 0 sonorities
+    sonorities = channel_tracks[0].sonorities  # Get channel 0 sonorities
     filtered_seq = Filter.process_notes(seq, 0, fn note -> note.duration < 0.2 end, :remove)
     filtered_channel_tracks = MapEvents.track_to_sonorities(filtered_seq, 0)
-    filtered_sonorities = filtered_channel_tracks[0]  # Get channel 0 sonorities
+    filtered_sonorities = filtered_channel_tracks[0].sonorities  # Get channel 0 sonorities
     assert [] == Enum.filter(filtered_sonorities, fn s -> Sonority.type(s) == :note and Sonority.duration(s) < 0.2 end)
     original_seq_total_duration = Enum.map(sonorities, &(&1.duration)) |> Enum.sum
     filtered_seq_total_duration = Enum.map(filtered_sonorities, &(&1.duration)) |> Enum.sum

@@ -65,7 +65,7 @@ defmodule MapEvents do
       # With custom chord tolerance
       channel_tracks = Midifile.MapEvents.track_to_sonorities(sequence, 0, chord_tolerance: 10)
   """
-  @spec track_to_sonorities(Midifile.Sequence, integer(), keyword()) :: %{integer() => [Sonority]}
+  @spec track_to_sonorities(Midifile.Sequence, integer(), keyword()) :: %{integer() => STrack}
   def track_to_sonorities(sequence, track_number, opts \\ []) do
     # Default options
     chord_tolerance = Keyword.get(opts, :chord_tolerance, 0)
@@ -73,6 +73,7 @@ defmodule MapEvents do
 
     # Get the specified track
     track = Enum.at(sequence.tracks, track_number)
+    track_name = MusicBuild.Util.get_track_name(track)
 
     # First, calculate absolute start and end times for all notes
     note_events = identify_note_events(track.events)
@@ -99,7 +100,7 @@ defmodule MapEvents do
         sonorities
       end
 
-      {channel, final_sonorities}
+      {channel, STrack.new(track_name, final_sonorities, tpqn)}
     end)
   end
 

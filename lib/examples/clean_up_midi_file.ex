@@ -22,8 +22,8 @@ defmodule MusicBuild.Examples.CleanUpMidiFile do
   """
   def bump_octave(pathname) do
     seq = Midifile.Reader.read(pathname)
-    sonorities = MapEvents.track_to_sonorities(seq, 0)
-    new_sonorities = Enum.map(sonorities, fn s ->
+    strack = MapEvents.track_to_sonorities(seq, 0)
+    new_sonorities = Enum.map(strack.sonorities, fn s ->
       case Sonority.type(s) do
         :note -> Note.bump_octave(s, :up)
       _ -> s

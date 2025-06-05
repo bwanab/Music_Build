@@ -33,6 +33,28 @@ defmodule MusicBuild.Util do
     end
   end
 
+  @spec get_track_name(Midifile.Sequence.t(), Integer) :: binary()
+  def get_track_name(seq, track_num) do
+    get_track_name(Enum.at(seq.tracks, track_num))
+  end
+
+  @spec get_track_name(Midifile.Track.t()) :: binary()
+  def get_track_name(track) do
+    events = track.events
+    name_events = Enum.filter(events, fn %Midifile.Event{symbol: symbol} -> symbol == :seq_name end)
+    if length(name_events) > 0 do
+      Enum.at(name_events, 0).bytes
+    else
+      "UnNamed"
+    end
+  end
+
+  @spec get_track_names(Midifile.Sequence.t()) :: [{Integer, binary()}]
+  def get_track_names(seq) do
+    Enum.with_index(seq.tracks)
+    |> Enum.map(fn {t, i} -> {i, MusicBuild.Util.get_track_name(t)} end)
+  end
+
   @doc """
   Recursively scans a directory for MIDI files (.mid and .midi) and prints information about each file.
   """

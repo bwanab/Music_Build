@@ -55,4 +55,9 @@ defmodule MusicBuild.TrackBuilder do
       events: List.flatten(e1 ++ events ++ e_last)
     }
   end
+
+  @spec new(STrack.t()) :: Track.t()
+  def new(%STrack{name: name, sonorities: sonorities, ticks_per_quarter_note: tpqn}) do
+    new(name, sonorities, tpqn)
+  end
 end
