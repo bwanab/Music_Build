@@ -80,9 +80,9 @@ defmodule MapEvents do
     # Group note events by channel
     notes_by_channel = Enum.group_by(note_events, fn note -> note.channel end)
 
-    # Calculate channel delays using note-on event timing (matches quarter_notes_until_first_flute)
-    note_on_events = read_note_on_events(sequence, track_number)
-    channel_delays = calculate_channel_delays_from_note_on_events(note_on_events, tpqn)
+    # Calculate channel delays using significant event timing (on, off, controller)
+    significant_events = read_significant_events(sequence, track_number)
+    channel_delays = calculate_channel_delays_from_significant_events(significant_events, tpqn)
 
     # Create sonorities for each channel with proper timing
     Enum.into(notes_by_channel, %{}, fn {channel, channel_notes} ->
@@ -500,7 +500,7 @@ defmodule MapEvents do
     |> Map.new
   end
 
-  def read_note_on_events(seq, track_num) do
+  def read_significant_events(seq, track_num) do
     track = Enum.at(seq.tracks, track_num)
     events = track.events
     Enum.filter(events, fn e -> e.symbol == :on or e.symbol == :off or e.symbol == :controller end)
@@ -512,22 +512,22 @@ defmodule MapEvents do
   end
 
   def quarter_notes_until_first_flute(seq, track_num) do
-    (read_note_on_events(seq, track_num)
+    (read_significant_events(seq, track_num)
     |> Enum.take_while(fn {channel, _, symbol} -> not (channel == 3 and symbol == :on) end)
     |> Enum.reduce(0, fn {_, delta, _}, acc -> acc + delta end)) / seq.ticks_per_quarter_note
   end
 
   @doc false
-  # Calculate delays for each channel based on note-on events
+  # Calculate delays for each channel based on significant events (on, off, controller)
   # Returns a map of channel -> delay_in_quarter_notes
-  # This matches the approach used by quarter_notes_until_first_flute
-  defp calculate_channel_delays_from_note_on_events(note_on_events, tpqn) do
+  # Considers delta times for all Event.symbol in [:on, :off, :controller] for proper alignment
+  defp calculate_channel_delays_from_significant_events(significant_events, tpqn) do
     # Group consecutive events by channel to find first appearance of each channel
-    {delays, _, _} = Enum.reduce(note_on_events, {%{}, 0, MapSet.new()}, fn {channel, delta}, {delays_acc, cumulative_time, seen_channels} ->
+    {delays, _, _} = Enum.reduce(significant_events, {%{}, 0, MapSet.new()}, fn {channel, delta, symbol}, {delays_acc, cumulative_time, seen_channels} ->
       new_cumulative_time = cumulative_time + delta
 
       # If this is the first time we see this channel, record its delay
-      if not MapSet.member?(seen_channels, channel) do
+      if symbol == :on and not MapSet.member?(seen_channels, channel) do
         delay_quarter_notes = cumulative_time / tpqn
         new_delays = Map.put(delays_acc, channel, delay_quarter_notes)
         new_seen = MapSet.put(seen_channels, channel)
