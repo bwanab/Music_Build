@@ -291,23 +291,28 @@ defmodule MapEventsTest do
     assert Sonority.duration(rest) == 1
   end
 
-  test "track_to_sonorities separates multi-channel MIDI file into channel tracks" do
-    # Test with Diana Krall MIDI file that has multiple channels
+  test "track_to_sonorities separates multi-channel MIDI file into channel tracks and percussion instruments" do
+    # Test with Diana Krall MIDI file that has multiple channels including percussion
     sequence = Midifile.read("midi/Diana_Krall_-_The_Look_Of_Love.mid")
 
     channel_tracks = MapEvents.track_to_sonorities(sequence, 0)
 
-    # Should have 8 channels (0, 1, 2, 3, 4, 5, 6, 9)
-    assert map_size(channel_tracks) == 8
+    # Should have 7 regular channels plus multiple percussion instruments (16 total based on current output)
+    assert map_size(channel_tracks) == 16
 
-    # Check that expected channels are present
-    expected_channels = [0, 1, 2, 3, 4, 5, 6, 9]
-    actual_channels = Map.keys(channel_tracks) |> Enum.sort()
-    assert actual_channels == expected_channels
+    # Check that expected regular channels are present
+    expected_regular_channels = [0, 1, 2, 3, 4, 5, 6]
+    regular_channels = Map.keys(channel_tracks) |> Enum.filter(&is_integer/1) |> Enum.sort()
+    assert regular_channels == expected_regular_channels
 
-    # Each channel should have sonorities
-    Enum.each(channel_tracks, fn {channel, strack} ->
-      assert length(strack.sonorities) > 0, "Channel #{channel} should have sonorities"
+    # Check that percussion instruments are present (they have string keys with "percussion_" prefix)
+    percussion_keys = Map.keys(channel_tracks) |> Enum.filter(&is_binary/1) |> Enum.sort()
+    expected_percussion_keys = ["percussion_36", "percussion_42", "percussion_44", "percussion_46", "percussion_61", "percussion_62", "percussion_63", "percussion_64", "percussion_82"]
+    assert percussion_keys == expected_percussion_keys
+
+    # Each track (channel or percussion instrument) should have sonorities
+    Enum.each(channel_tracks, fn {track_key, strack} ->
+      assert length(strack.sonorities) > 0, "Track #{track_key} should have sonorities"
 
       # All sonorities should be valid types
       Enum.each(strack.sonorities, fn sonority ->
@@ -317,20 +322,25 @@ defmodule MapEventsTest do
       end)
     end)
 
-    # Channel 9 (drums) should be the most active
-    drums_count = length(channel_tracks[9].sonorities)
-    other_channels = Map.delete(channel_tracks, 9)
-    Enum.each(other_channels, fn {channel, strack} ->
-      assert length(strack.sonorities) < drums_count,
-        "Channel #{channel} has more events than drums channel"
-    end)
+    # Percussion instruments should be the most active
+    percussion_total_count = percussion_keys 
+    |> Enum.map(&channel_tracks[&1].sonorities) 
+    |> Enum.map(&length/1) 
+    |> Enum.sum()
+    
+    regular_total_count = regular_channels 
+    |> Enum.map(&channel_tracks[&1].sonorities) 
+    |> Enum.map(&length/1) 
+    |> Enum.sum()
+    
+    assert percussion_total_count > regular_total_count, "Percussion should be more active than regular instruments"
 
     # Channel 2 should be very active (second most active melodic channel)
     channel_2_count = length(channel_tracks[2].sonorities)
     assert channel_2_count > 1000, "Channel 2 should have many sonorities"
 
     # Verify that we get different results than treating all channels as one
-    # (This ensures we're actually separating channels)
+    # (This ensures we're actually separating channels and percussion instruments)
     total_sonorities_count = Enum.map(channel_tracks, fn {_, strack} ->
       length(strack.sonorities)
     end) |> Enum.sum()
@@ -339,5 +349,55 @@ defmodule MapEventsTest do
     # because each channel has its own timeline
     assert total_sonorities_count > 5000,
       "Separated channels should have substantial total sonorities"
+  end
+
+  test "track_to_sonorities handles percussion option correctly" do
+    # Create a simple sequence with some non-percussion notes
+    track = %Midifile.Track{
+      events: [
+        %Midifile.Event{symbol: :on, delta_time: 0, bytes: [144, 60, 100]},  # C4 on channel 0
+        %Midifile.Event{symbol: :off, delta_time: 480, bytes: [128, 60, 64]}, # C4 off channel 0
+        %Midifile.Event{symbol: :on, delta_time: 0, bytes: [144, 64, 100]},  # E4 on channel 0
+        %Midifile.Event{symbol: :off, delta_time: 480, bytes: [128, 64, 64]}  # E4 off channel 0
+      ]
+    }
+    sequence = %Midifile.Sequence{
+      tracks: [track],
+      ticks_per_quarter_note: 480
+    }
+
+    # Test without is_percussion option (should be treated as regular track)
+    regular_result = MapEvents.track_to_sonorities(sequence, 0)
+    assert Map.has_key?(regular_result, 0), "Should have channel 0"
+    assert map_size(regular_result) == 1, "Should have only one channel"
+
+    # Test with is_percussion: true option (should split by pitch)
+    percussion_result = MapEvents.track_to_sonorities(sequence, 0, is_percussion: true)
+    assert Map.has_key?(percussion_result, "percussion_60"), "Should have percussion track for pitch 60"
+    assert Map.has_key?(percussion_result, "percussion_64"), "Should have percussion track for pitch 64"
+    assert map_size(percussion_result) == 2, "Should have two percussion instruments"
+
+    # Verify the percussion instruments have proper names from CSV mapping
+    strack_60 = percussion_result["percussion_60"]
+    strack_64 = percussion_result["percussion_64"]
+    assert strack_60.name == "Hi Bongo", "Should use name from CSV file for pitch 60"
+    assert strack_64.name == "Low Conga", "Should use name from CSV file for pitch 64"
+  end
+
+  test "percussion mapping uses CSV file when available" do
+    # Test that percussion mapping correctly reads from CSV and assigns proper names
+    sequence = Midifile.read("midi/Diana_Krall_-_The_Look_Of_Love.mid")
+    channel_tracks = MapEvents.track_to_sonorities(sequence, 0)
+
+    # Check that specific percussion instruments have proper names from CSV
+    if Map.has_key?(channel_tracks, "percussion_42") do
+      closed_hihat_track = channel_tracks["percussion_42"]
+      assert closed_hihat_track.name == "Closed Hi Hat", "Should use name from CSV file"
+    end
+
+    if Map.has_key?(channel_tracks, "percussion_44") do
+      pedal_hihat_track = channel_tracks["percussion_44"]
+      assert pedal_hihat_track.name == "Pedal Hi-Hat", "Should use name from CSV file"
+    end
   end
 end

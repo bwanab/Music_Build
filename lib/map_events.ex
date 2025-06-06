@@ -69,15 +69,37 @@ defmodule MapEvents do
   def track_to_sonorities(sequence, track_number, opts \\ []) do
     # Default options
     chord_tolerance = Keyword.get(opts, :chord_tolerance, 0)
+    is_percussion = Keyword.get(opts, :is_percussion, false)
     tpqn = sequence.ticks_per_quarter_note
 
     # Get the specified track
     track = Enum.at(sequence.tracks, track_number)
     track_name = MusicBuild.Util.get_track_name(track)
+    track_name = if String.length(track_name) == 0 do
+      Keyword.get(opts, :track_name, "UnNamed")
+    end
 
     # First, calculate absolute start and end times for all notes
     note_events = identify_note_events(track.events)
 
+    # Check if this track contains percussion (channel 9, which is channel 10 in 1-based numbering)
+    has_percussion = Enum.any?(note_events, fn note -> note.channel == 9 end)
+    
+    # Determine if we should use percussion processing
+    use_percussion_processing = has_percussion or is_percussion
+
+    if use_percussion_processing do
+      # Process percussion tracks by splitting on pitch rather than channel
+      process_percussion_track(note_events, track_name, chord_tolerance, tpqn, sequence, track_number)
+    else
+      # Original channel-based processing for non-percussion tracks
+      process_regular_track(note_events, track_name, chord_tolerance, tpqn, sequence, track_number)
+    end
+  end
+
+  @doc false
+  # Process regular (non-percussion) tracks by grouping events by channel
+  defp process_regular_track(note_events, track_name, chord_tolerance, tpqn, sequence, track_number) do
     # Group note events by channel
     notes_by_channel = Enum.group_by(note_events, fn note -> note.channel end)
 
@@ -102,6 +124,92 @@ defmodule MapEvents do
 
       {channel, STrack.new(track_name, final_sonorities, tpqn)}
     end)
+  end
+
+  @doc false
+  # Process percussion tracks by grouping events by pitch (instrument)
+  defp process_percussion_track(note_events, base_track_name, chord_tolerance, tpqn, sequence, track_number) do
+    # Load percussion instrument mapping
+    percussion_map = read_percussion_mapping()
+    
+    # Check if we have mixed percussion (channel 9) and non-percussion events
+    has_channel_9 = Enum.any?(note_events, fn note -> note.channel == 9 end)
+    has_other_channels = Enum.any?(note_events, fn note -> note.channel != 9 end)
+    
+    percussion_events = if has_channel_9 and has_other_channels do
+      # Mixed track - separate percussion and non-percussion
+      {perc_events, non_perc_events} = Enum.split_with(note_events, fn note -> note.channel == 9 end)
+      
+      # Process non-percussion events using regular processing
+      non_perc_result = if length(non_perc_events) > 0 do
+        process_regular_track(non_perc_events, base_track_name, chord_tolerance, tpqn, sequence, track_number)
+      else
+        %{}
+      end
+      
+      # Continue with percussion events and merge results later
+      {perc_events, non_perc_result}
+    else
+      # Either pure channel 9 percussion OR is_percussion: true was set for all events
+      # EXPERIMENTAL: The is_percussion option allows treating any track as percussion,
+      # splitting events by pitch rather than channel even for non-percussion instruments
+      {note_events, %{}}
+    end
+    
+    {percussion_note_events, non_percussion_result} = percussion_events
+    
+    # Group percussion events by pitch (instrument)
+    notes_by_pitch = Enum.group_by(percussion_note_events, fn note -> note.note end)
+
+    # Calculate timing delays for percussion instruments
+    significant_events = read_significant_events(sequence, track_number)
+    channel_delays = calculate_channel_delays_from_significant_events(significant_events, tpqn)
+
+    # Create tracks for each percussion instrument
+    percussion_result = Enum.into(notes_by_pitch, %{}, fn {pitch, pitch_notes} ->
+      # Get instrument name from mapping, fallback to generic name
+      instrument_name = Map.get(percussion_map, pitch, "Percussion #{pitch}")
+      
+      # Convert to sonorities (but these will be individual notes, not chords)
+      sonorities = group_into_sonorities(pitch_notes, chord_tolerance, tpqn)
+
+      # For percussion, use the delay of channel 9 (if any)
+      delay_quarter_notes = Map.get(channel_delays, 9, 0)
+
+      # If this instrument starts later, prepend a rest sonority
+      final_sonorities = if delay_quarter_notes > 0 do
+        initial_rest = Rest.new(delay_quarter_notes)
+        [initial_rest | sonorities]
+      else
+        sonorities
+      end
+
+      # Use pitch as the key instead of channel, with a prefix to distinguish from channels
+      {"percussion_#{pitch}", STrack.new(instrument_name, final_sonorities, tpqn)}
+    end)
+    
+    # Merge non-percussion and percussion results
+    Map.merge(non_percussion_result, percussion_result)
+  end
+
+  @doc false
+  # Read the percussion instrument mapping from CSV file
+  defp read_percussion_mapping() do
+    case File.exists?("midi_percussion_mapping.csv") do
+      true ->
+        File.stream!("midi_percussion_mapping.csv")
+        |> CSV.decode(headers: true)
+        |> Enum.reduce(%{}, fn
+          {:ok, %{"Key#" => key_str, "Drum Sound" => drum_sound}}, acc ->
+            case Integer.parse(key_str) do
+              {key, ""} -> Map.put(acc, key, drum_sound)
+              _ -> acc
+            end
+          _, acc -> acc
+        end)
+      false ->
+        %{}  # Return empty map if file doesn't exist
+    end
   end
 
 

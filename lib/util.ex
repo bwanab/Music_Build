@@ -45,7 +45,7 @@ defmodule MusicBuild.Util do
     if length(name_events) > 0 do
       Enum.at(name_events, 0).bytes
     else
-      "UnNamed"
+      ""
     end
   end
 
