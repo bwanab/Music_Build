@@ -3,7 +3,21 @@ defmodule MusicBuild.Util do
   alias Midifile.Sequence
   alias MusicBuild.TrackBuilder
 
-  def write_midi_file(notes, outpath, opts \\ []) do
+#  @spec write_midi_file(%{any() => STrack.t()}) :: :ok
+  def write_midi_file(n, o, opts \\ [])
+  def write_midi_file(strack_map, outpath, opts) when is_map(strack_map) do
+
+    {tracks, names} = Map.values(strack_map)
+      |> Enum.map(fn %STrack{name: name, sonorities: sonorities} ->
+        use_name = if is_nil(name), do: "Unnamed", else: name
+        {sonorities, use_name}
+      end)
+      |> Enum.unzip()
+    write_midi_file(tracks, outpath, Keyword.put(opts, :inst_names, names))
+  end
+
+ # @spec write_midi_file([Sonority.t()], binary, keyword()) :: :ok
+  def write_midi_file(notes, outpath, opts) do
     tpqn = Keyword.get(opts, :ticks_per_quarter_note, 960)
     bpm = Keyword.get(opts, :bpm, 110)
     inst_names = Keyword.get(opts, :inst_names, Enum.map(notes, fn _ -> "UnNamed" end))
