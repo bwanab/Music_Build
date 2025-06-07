@@ -5,14 +5,15 @@ defmodule STrack do
     name: String.t(),
     type: stype(),
     ticks_per_quarter_note: Integer,
+    program_number: Integer,
     sonorities: [Sonority.t()]
   }
 
 
-  defstruct [:name, :type, :ticks_per_quarter_note, :sonorities]
+  defstruct [:name, :type, :ticks_per_quarter_note, :program_number, :sonorities]
 
-  def new(name, sonorities, tpqn, type \\ :instrument) do
-    %__MODULE__{name: name, type: type, ticks_per_quarter_note: tpqn, sonorities: sonorities}
+  def new(name, sonorities, tpqn, type \\ :instrument, program_number \\ 0) do
+    %__MODULE__{name: name, type: type, ticks_per_quarter_note: tpqn, program_number: program_number, sonorities: sonorities}
   end
 
 end

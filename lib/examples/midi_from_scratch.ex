@@ -7,7 +7,7 @@ defmodule MusicBuild.Examples.MidiFromScratch do
   # creates a C major scale where each note has a duration of 1 quarter note and writes it to a midifile.
   def midifile_from_scratch(out_type \\ :midi) do
     c_major = major_scale(:C, 4)
-    write_file(c_major, "c_major_scale", out_type)
+    write_file([c_major], "c_major_scale", out_type)
   end
 
   # this is only for testing. The only case it can add a rest assumes all the notes are 1 quarter note and
@@ -113,7 +113,7 @@ defmodule MusicBuild.Examples.MidiFromScratch do
   @spec change_dur_at([Sonority.t()], integer(), any()) :: {[Sonority.t()], float()}
   def change_dur_at(ms, pos, duration) do
     note = Enum.at(ms, pos)
-    ms = List.replace_at(ms, pos, Note.new(note.note, duration: duration, velocity: note.velocity))
+    ms = List.replace_at(ms, pos, Note.copy(note, duration: duration))
     total_dur = Enum.reduce(ms, 0,  &(&1.duration + &2))
     {ms, total_dur}
   end

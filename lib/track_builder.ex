@@ -44,20 +44,25 @@ defmodule MusicBuild.TrackBuilder do
 
       track = MusicBuild.TrackBuilder.new("C Major Scale", notes, 960)
   """
-  @spec new(String.t(), [Sonority], integer()) :: Track.t()
-  def new(name, sonorities, tpqn \\ Defaults.default_ppqn) do
+  @spec new(String.t(), [Sonority], integer(), integer(), integer()) :: Track.t()
+  def new(name, sonorities, tpqn \\ Defaults.default_ppqn, program_number \\ 0, channel_number \\ 0) do
+    prog_event = if channel_number == 9 do
+       [%Event{symbol: :controller, delta_time: 0, bytes: [185, 7, 127]}]
+    else
+       [%Event{symbol: :program, delta_time: 0, bytes: [192 + channel_number, program_number]}]
+    end
     e1 = [%Event{symbol: :seq_name, delta_time: 0, bytes: name}]
-    events = Enum.map(sonorities, &(EventBuilder.new(Sonority.type(&1), &1, tpqn)))
+    events = Enum.map(sonorities, &(EventBuilder.new(Sonority.type(&1), &1, tpqn, channel_number)))
     e_last = [%Event{symbol: :track_end, delta_time: 0, bytes: []}]
 
     %Track{
       name: name,
-      events: List.flatten(e1 ++ events ++ e_last)
+      events: List.flatten(e1 ++ prog_event ++ events ++ e_last)
     }
   end
 
   @spec new(STrack.t()) :: Track.t()
-  def new(%STrack{name: name, sonorities: sonorities, ticks_per_quarter_note: tpqn}) do
-    new(name, sonorities, tpqn)
+  def new(%STrack{name: name, sonorities: sonorities, ticks_per_quarter_note: tpqn, program_number: program_number}) do
+    new(name, sonorities, tpqn, program_number)
   end
 end

@@ -126,12 +126,16 @@ defmodule MapEvents do
       end
 
       # Determine instrument name from program change mapping
-      channel_instrument_name = case Map.get(program_changes, channel) do
+      {program, program_number} = case Map.get(program_changes, channel) do
+        nil -> {0, 0}
+        {program, program_number} -> {program, program_number}
+      end
+      channel_instrument_name = case program do
         nil -> "#{track_name} Ch#{channel}"  # Fallback to channel number
         instrument_name -> instrument_name
       end
 
-      {channel, STrack.new(channel_instrument_name, final_sonorities, tpqn)}
+      {channel, STrack.new(channel_instrument_name, final_sonorities, tpqn, :instrument, program_number)}
     end)
   end
 
@@ -194,7 +198,7 @@ defmodule MapEvents do
       end
 
       # Use pitch as the key instead of channel, with a prefix to distinguish from channels
-      {"percussion_#{pitch}", STrack.new(instrument_name, final_sonorities, tpqn)}
+      {"percussion_#{pitch}", STrack.new(instrument_name, final_sonorities, tpqn, :percussion, 9)}
     end)
 
     # Merge non-percussion and percussion results
@@ -614,6 +618,10 @@ defmodule MapEvents do
     best_match
   end
 
+  @doc """
+  returns a map off all program change events in a channel where
+  the key is the channel and the value is {instrument_name, program_number}
+  """
   def get_program_changes(seq, track_num) do
     mim = read_midi_instrument_map()
     track = Enum.at(seq.tracks, track_num)
@@ -622,11 +630,28 @@ defmodule MapEvents do
     |> Enum.map(fn %Midifile.Event{bytes: [high, low]} ->
       {Integer.to_string(high, 2)
       |> String.slice(4..7)
-      |> String.to_integer(2), Map.get(mim, low)}
+      |> String.to_integer(2), {Map.get(mim, low), low}}
     end)
     |> Enum.uniq()
     |> Enum.sort()
     |> Map.new
+  end
+
+  def get_channel(%Midifile.Event{symbol: :on, bytes: bytes}) do
+    get_channel_from_bytes(bytes)
+  end
+  def get_channel(%Midifile.Event{symbol: :off, bytes: bytes}) do
+    get_channel_from_bytes(bytes)
+  end
+  def get_channel(%Midifile.Event{symbol: :controller, bytes: bytes}) do
+    get_channel_from_bytes(bytes)
+  end
+  def get_channel(_), do: -1
+
+  def get_channel_from_bytes([b1, _, _]) do
+    Integer.to_string(b1, 2)
+    |> String.slice(4..7)
+    |> String.to_integer(2)
   end
 
   def read_midi_instrument_map() do

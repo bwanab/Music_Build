@@ -55,11 +55,12 @@ defmodule MusicBuild.Examples.ArpeggioProgressions do
                     |> List.duplicate(repeats)
                     |> List.flatten()
 
-    write_file([all_chords, all_arpeggios, bass_arpeggios], name, out_type)
+    write_file([all_chords, all_arpeggios, bass_arpeggios], name, out_type, inst_names: ["piano chords", "arpeggios", "bass"])
   end
 
-  def pachelbels_canon() do
-    do_arpeggio_progression([:I, :V, :vi, :iii, :IV, :I, :IV, :V],  :C, "pachelbel", 10)
+  def pachelbels_canon(out_type \\ :lily) do
+    #do_arpeggio_progression([:I, :V, :vi, :iii, :IV, :I, :IV, :V],  :C, "pachelbel", 10, out_type)
+    do_arpeggio_progression([:I, :V, :vi, :iii, :IV, :I, :IV, :V],  :C, "midi/pachelbel.mid", 10, out_type)
   end
 
 end

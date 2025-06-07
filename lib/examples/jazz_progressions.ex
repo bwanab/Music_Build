@@ -67,8 +67,8 @@ defmodule MusicBuild.Examples.JazzProgressions do
     do_chord_progression([:ii7, :V7, :I7], :E, "basic_jazz")
   end
 
-  def pachelbels_canon() do
-    do_chord_progression([:I7, :V7, :vi7, :iii7, :IV7, :I7, :IV7, :V7],  :E, "pachelbel", false)
+  def pachelbels_canon(out_type \\ :lily) do
+    do_chord_progression([:I7, :V7, :vi7, :iii7, :IV7, :I7, :IV7, :V7],  :E, "pachelbel", false, out_type)
   end
 
 end

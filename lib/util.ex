@@ -7,13 +7,15 @@ defmodule MusicBuild.Util do
   def write_midi_file(n, o, opts \\ [])
   def write_midi_file(strack_map, outpath, opts) when is_map(strack_map) do
 
-    {tracks, names} = Map.values(strack_map)
-      |> Enum.map(fn %STrack{name: name, sonorities: sonorities} ->
+    [tracks, names, program_numbers] = Map.values(strack_map)
+      |> Enum.map(fn %STrack{name: name, sonorities: sonorities, program_number: program_number} ->
         use_name = if is_nil(name), do: "Unnamed", else: name
-        {sonorities, use_name}
+        {sonorities, use_name, program_number}
       end)
-      |> Enum.unzip()
-    write_midi_file(tracks, outpath, Keyword.put(opts, :inst_names, names))
+      |> unzip_n()
+
+    opts = opts |> Keyword.put(:inst_names, names) |> Keyword.put(:program_numbers, program_numbers)
+    write_midi_file(tracks, outpath, opts)
   end
 
  # @spec write_midi_file([Sonority.t()], binary, keyword()) :: :ok
@@ -21,9 +23,14 @@ defmodule MusicBuild.Util do
     tpqn = Keyword.get(opts, :ticks_per_quarter_note, 960)
     bpm = Keyword.get(opts, :bpm, 110)
     inst_names = Keyword.get(opts, :inst_names, Enum.map(notes, fn _ -> "UnNamed" end))
+    program_numbers = Keyword.get(opts, :program_numbers, Enum.map(notes, fn _ -> 0 end))
+    channel_numbers = Enum.to_list(0..length(notes) - 1)
     name = Path.basename(outpath, Path.extname(outpath))
 
-    tracks = Enum.map(Enum.zip(notes, inst_names), fn {track, inst_name} -> TrackBuilder.new(inst_name, track, 960) end)
+    tracks = Enum.map(Enum.zip([notes, inst_names, program_numbers, channel_numbers]), fn {track, inst_name, program_number, channel} ->
+      channel = if program_number == 9, do: 9, else: channel
+      TrackBuilder.new(inst_name, track, 960, program_number, channel)
+    end)
     sfs = Sequence.new(name, bpm, tracks, tpqn)
     Midifile.write(sfs, outpath)
   end
@@ -31,7 +38,9 @@ defmodule MusicBuild.Util do
   @spec write_file([Sonority.t()], binary(), atom(), keyword()) :: :ok
   def write_file(notes, name, out_type \\ :midi, opts \\ []) do
     case out_type do
-      :midi -> write_midi_file(notes, name, opts)
+      :midi ->
+        out_path = if Path.extname(name) == "", do: Keyword.get(opts, :out_path, "./midi/#{name}.mid"), else: name
+        write_midi_file(notes, out_path, opts)
       :lily ->
         midi? = Keyword.get(opts, :midi, true)
         out_path = Keyword.get(opts, :out_path, "./midi")
@@ -67,6 +76,51 @@ defmodule MusicBuild.Util do
   def get_track_names(seq) do
     Enum.with_index(seq.tracks)
     |> Enum.map(fn {t, i} -> {i, MusicBuild.Util.get_track_name(t)} end)
+  end
+
+  @doc """
+  removes all notes that have a duration of less than a 16th note
+
+  Note that this currently assumes a file with one track!
+  """
+  def filter_bad_notes(pathname) do
+    seq = Midifile.Reader.read(pathname)
+    filtered_seq = Filter.process_notes(seq, 0, fn note -> note.duration < 0.1 end, :remove)
+    outpath = Path.join(Path.dirname(pathname), "filtered_" <> Path.basename(pathname))
+    IO.inspect(outpath)
+    Midifile.Writer.write(filtered_seq, outpath)
+  end
+
+  @doc """
+  bumps a midi files notes up one octave.
+
+  NOTE: this only works for tracks that contain no Arpeggios or Chords at present!
+  TODO: there needs to be a Sonority function to change the pitch of a sonority
+        by a given numer of semitones.
+  """
+  def bump_octave(seq, track_num) do
+    strack_map = MapEvents.track_to_sonorities(seq, track_num)
+    Enum.map(strack_map[0].sonorities, fn s ->
+      case Sonority.type(s) do
+        :note -> Note.bump_octave(s, :up)
+      _ -> s
+      end
+    end)
+  end
+
+  def merge_maps_with_lists(maps) do
+    Enum.reduce(maps, %{}, fn map, acc ->
+      Map.merge(acc, map, fn _key, list1, list2 ->
+        list1 ++ list2
+      end)
+    end)
+  end
+
+  def chunk_line(line, num_per_measure, pattern) do
+    measures = Enum.chunk_every(line, num_per_measure)
+    Enum.reduce(Enum.zip(pattern, measures), %{}, fn {p, notes}, acc ->
+      Map.put(acc, p, Map.get(acc, p, []) ++ [notes])
+    end)
   end
 
   @doc """
@@ -108,4 +162,17 @@ defmodule MusicBuild.Util do
     end)
   end
 
+  def unzip_n(tuples) do
+    tuples
+    |> Enum.map(&Tuple.to_list/1)
+    |> Enum.zip()
+    |> Enum.map(&Tuple.to_list/1)
+  end
+
+
+  def play_midi(path) do
+    out_path = Path.expand(path)
+    soundfont_path = Path.expand("~/Documents/music/soundfonts/PC51f.sf2")
+    System.cmd("fluidsynth", ["-i", "#{soundfont_path}", "#{out_path}"])
+  end
 end

@@ -5,7 +5,7 @@ defmodule MusicBuild.Examples.BassPlayer do
 # Title: Pattern_Eval
 
 
-alias MusicBuild.Examples.PatternEvaluator
+alias MusicBuild.Util
 alias WeightedRandom
 
 # First, we'll read the midi file with our bass lines and split them into individual lines. We're defining a 'line' as one 12-bar segment.
@@ -16,13 +16,13 @@ alias WeightedRandom
 def compute_probability_table() do
   seq = Midifile.read(Path.join(@test_dir, "quantized_blues_bass.mid"))
   strack = MapEvents.track_to_sonorities(seq, 0)
-  chunks = Enum.chunk_every(strack.sonorities, 12*8)
+  chunks = Enum.chunk_every(strack[0].sonorities, 12*8)
 
   # Now, we use the 12-bar chord pattern to break down the lines into chord groupings. That is, we are gathering all the notes as they were played for each of the 3 chords in the progression in the order that they were played. This means in each of the individual lists, we've got 8 notes that are the notes played in their respective positions of each run. This grouping allows us to understand the most likely note to be played in each note position. My prior belief is that the first note is most likely to be the root of the chord and the note is a 'connecting' note from one chord to the next. I have no prior about positions 2-7 (one based).
 
 
-  mapped = Enum.map(chunks, fn line -> PatternEvaluator.chunk_line(line, 8, @pattern) end)
-              |> PatternEvaluator.merge_maps_with_lists()
+  mapped = Enum.map(chunks, fn line -> Util.chunk_line(line, 8, @pattern) end)
+              |> Util.merge_maps_with_lists()
 
 
   root_map = Map.new(Enum.map(Map.keys(mapped), fn k ->
@@ -80,10 +80,14 @@ def build_bass_line(probabilities_table, root_map, num_cycles) do
     end)
     end)
   end)
-  MusicBuild.Examples.CleanUpMidiFile.write_midi_file([base_lines],
+  MusicBuild.Util.write_midi_file([base_lines],
     Path.join(@test_dir, "generated_blues_bass.mid"))
 end
 
+def bass_player() do
+  {root_map, table} = compute_probability_table()
+  build_bass_line(table, root_map, 4)
+end
 
 # ── Build the pattern/position probabilities table ──
 
