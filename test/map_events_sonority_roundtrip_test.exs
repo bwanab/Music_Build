@@ -66,6 +66,12 @@ defmodule Midifile.MapEventsSonorityRoundtripTest do
         :rest ->
           # For rests, duration check is sufficient (already done above)
           :ok
+
+        :controller ->
+          # For controllers, check controller number, value, and channel
+          assert original.controller_number == new.controller_number
+          assert original.value == new.value
+          assert original.channel == new.channel
       end
     end)
 
@@ -98,6 +104,71 @@ defmodule Midifile.MapEventsSonorityRoundtripTest do
       assert Sonority.duration(s1) == Sonority.duration(s2)
     end)
 
+  end
+
+  test "controller sonorities round trip through MIDI conversion" do
+    # Create sonorities including controllers
+    original_sonorities = [
+      Note.new(:C, 4, 1, 80, 0),
+      Controller.new(7, 100, 0),   # Volume controller
+      Note.new(:D, 4, 1, 80, 0),
+      Controller.new(10, 64, 0),   # Pan controller
+      Rest.new(0.5, 0),
+      Controller.new(1, 32, 0),    # Modulation controller
+      Note.new(:E, 4, 1, 80, 0)
+    ]
+
+    # Convert to MIDI track
+    temp_track = TrackBuilder.new("Controller Test", original_sonorities, 960)
+    temp_sequence = Sequence.new(
+      "Controller Test",
+      120,  # BPM
+      [temp_track],
+      960   # TPQN
+    )
+    Writer.write(temp_sequence, "test/controller_temp.mid")
+
+    # Read back and convert to sonorities
+    new_sequence = Midifile.read("test/controller_temp.mid")
+    new_channel_tracks = MapEvents.track_to_sonorities(new_sequence, 0)
+    new_sonorities = new_channel_tracks[0].sonorities
+
+    # Filter out any automatic program/controller events that might be added
+    filtered_new_sonorities = Enum.filter(new_sonorities, fn s ->
+      case Sonority.type(s) do
+        :controller -> 
+          # Only keep our specific controllers (7, 10, 1), filter out any others
+          s.controller_number in [7, 10, 1]
+        _ -> 
+          true
+      end
+    end)
+
+    # Check that we have the expected number of our specific sonorities
+    expected_count = length(original_sonorities)
+    assert length(filtered_new_sonorities) == expected_count
+
+    # Compare each sonority
+    Enum.zip(original_sonorities, filtered_new_sonorities)
+    |> Enum.each(fn {original, new} ->
+      assert Sonority.type(original) == Sonority.type(new)
+      assert Sonority.duration(original) == Sonority.duration(new)
+
+      case Sonority.type(original) do
+        :controller ->
+          assert original.controller_number == new.controller_number
+          assert original.value == new.value
+          assert original.channel == new.channel
+        :note ->
+          assert Note.enharmonic_equal?(original.note, new.note)
+          assert original.velocity == new.velocity
+        :rest ->
+          :ok
+      end
+    end)
+
+    # Clean up
+    File.rm("test/controller_temp.mid")
   end
 
 end

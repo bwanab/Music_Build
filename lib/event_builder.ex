@@ -2,7 +2,7 @@ defmodule MusicBuild.EventBuilder do
   @moduledoc """
   Provides functionality for building MIDI events from musical sonorities.
 
-  This module handles the conversion of high-level musical sonorities (notes, chords, rests)
+  This module handles the conversion of high-level musical sonorities (notes, chords, rests, controllers)
   into low-level MIDI events.
   """
 
@@ -12,13 +12,14 @@ defmodule MusicBuild.EventBuilder do
   alias Chord
   alias Rest
   alias Arpeggio
+  alias Controller
 
   @doc """
   Creates MIDI events from a sonority.
 
   ## Parameters
 
-    * `sonority_type` - The type of sonority (:note, :chord, :rest, :arpeggio)
+    * `sonority_type` - The type of sonority (:note, :chord, :rest, :arpeggio, :controller)
     * `sonority` - The sonority to convert
     * `tpqn` - Ticks per quarter note (default: 960)
 
@@ -61,6 +62,13 @@ defmodule MusicBuild.EventBuilder do
     notes = Sonority.to_notes(arpeggio)
     events = Enum.map(notes, &(new(:note, &1, tpqn)))
     List.flatten(events)
+  end
+
+  def new(:controller, controller, _tpqn) do
+    channel = Sonority.channel(controller)
+    [
+      %Event{symbol: :controller, delta_time: 0, bytes: [176 + channel, controller.controller_number, controller.value]}
+    ]
   end
 
   defp first_chord_note(%Note{note: n, octave: o, velocity: v, channel: channel}, duration, tpqn) do

@@ -2,7 +2,7 @@ defmodule MusicBuild.TrackBuilder do
   @moduledoc """
   Provides functionality for building MIDI tracks from musical sonorities.
 
-  This module handles the conversion of high-level musical sonorities (notes, chords, rests)
+  This module handles the conversion of high-level musical sonorities (notes, chords, rests, controllers)
   into low-level MIDI events and assembles them into properly formatted tracks.
   """
 
@@ -14,14 +14,14 @@ defmodule MusicBuild.TrackBuilder do
   @doc """
   Creates a new track from a list of sonorities.
 
-  This function converts high-level musical sonorities (notes, chords, rests)
+  This function converts high-level musical sonorities (notes, chords, rests, controllers)
   into low-level MIDI events and assembles them into a properly formatted track.
   The track will include a name event at the beginning and an end-of-track event.
 
   ## Parameters
 
     * `name` - String name for the track
-    * `sonorities` - List of sonority protocol implementations (Note, Chord, Rest)
+    * `sonorities` - List of sonority protocol implementations (Note, Chord, Rest, Controller)
     * `tpqn` - Ticks per quarter note, defines the time resolution (default: 960)
 
   ## Returns
