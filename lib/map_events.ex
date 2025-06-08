@@ -79,8 +79,10 @@ defmodule MapEvents do
       Keyword.get(opts, :track_name, "UnNamed")
     end
 
-    # First, calculate absolute start and end times for all notes
-    note_events = identify_note_events(track.events)
+    # First, calculate absolute start and end times for all notes and controllers
+    sonority_events = identify_sonority_events(track.events)
+    note_events = sonority_events.notes
+    controller_events = sonority_events.controllers
 
     # Check if this track contains percussion (channel 9, which is channel 10 in 1-based numbering)
     has_percussion = Enum.any?(note_events, fn note -> note.channel == 9 end)
@@ -90,18 +92,19 @@ defmodule MapEvents do
 
     if use_percussion_processing do
       # Process percussion tracks by splitting on pitch rather than channel
-      process_percussion_track(note_events, track_name, chord_tolerance, tpqn, sequence, track_number)
+      process_percussion_track(note_events, controller_events, track_name, chord_tolerance, tpqn, sequence, track_number)
     else
       # Original channel-based processing for non-percussion tracks
-      process_regular_track(note_events, track_name, chord_tolerance, tpqn, sequence, track_number)
+      process_regular_track(note_events, controller_events, track_name, chord_tolerance, tpqn, sequence, track_number)
     end
   end
 
   @doc false
   # Process regular (non-percussion) tracks by grouping events by channel
-  defp process_regular_track(note_events, track_name, chord_tolerance, tpqn, sequence, track_number) do
-    # Group note events by channel
+  defp process_regular_track(note_events, controller_events, track_name, chord_tolerance, tpqn, sequence, track_number) do
+    # Group note events and controller events by channel
     notes_by_channel = Enum.group_by(note_events, fn note -> note.channel end)
+    controllers_by_channel = Enum.group_by(controller_events, fn controller -> controller.channel end)
 
     # Get program changes for each channel (which already includes instrument mapping)
     program_changes = get_program_changes(sequence, track_number)
@@ -112,7 +115,8 @@ defmodule MapEvents do
 
     # Create sonorities for each channel with proper timing
     Enum.into(notes_by_channel, %{}, fn {channel, channel_notes} ->
-      sonorities = group_into_sonorities(channel_notes, chord_tolerance, tpqn)
+      channel_controllers = Map.get(controllers_by_channel, channel, [])
+      sonorities = group_into_sonorities(channel_notes, channel_controllers, chord_tolerance, tpqn)
 
       # Get the delay for this channel based on note-on events
       delay_quarter_notes = Map.get(channel_delays, channel, 0)
@@ -141,7 +145,7 @@ defmodule MapEvents do
 
   @doc false
   # Process percussion tracks by grouping events by pitch (instrument)
-  defp process_percussion_track(note_events, base_track_name, chord_tolerance, tpqn, sequence, track_number) do
+  defp process_percussion_track(note_events, controller_events, base_track_name, chord_tolerance, tpqn, sequence, track_number) do
     # Load percussion instrument mapping
     percussion_map = read_percussion_mapping()
 
@@ -152,24 +156,25 @@ defmodule MapEvents do
     percussion_events = if has_channel_9 and has_other_channels do
       # Mixed track - separate percussion and non-percussion
       {perc_events, non_perc_events} = Enum.split_with(note_events, fn note -> note.channel == 9 end)
+      {perc_controllers, non_perc_controllers} = Enum.split_with(controller_events, fn controller -> controller.channel == 9 end)
 
       # Process non-percussion events using regular processing
       non_perc_result = if length(non_perc_events) > 0 do
-        process_regular_track(non_perc_events, base_track_name, chord_tolerance, tpqn, sequence, track_number)
+        process_regular_track(non_perc_events, non_perc_controllers, base_track_name, chord_tolerance, tpqn, sequence, track_number)
       else
         %{}
       end
 
       # Continue with percussion events and merge results later
-      {perc_events, non_perc_result}
+      {{perc_events, perc_controllers}, non_perc_result}
     else
       # Either pure channel 9 percussion OR is_percussion: true was set for all events
       # EXPERIMENTAL: The is_percussion option allows treating any track as percussion,
       # splitting events by pitch rather than channel even for non-percussion instruments
-      {note_events, %{}}
+      {{note_events, controller_events}, %{}}
     end
 
-    {percussion_note_events, non_percussion_result} = percussion_events
+    {{percussion_note_events, percussion_controller_events}, non_percussion_result} = percussion_events
 
     # Group percussion events by pitch (instrument)
     notes_by_pitch = Enum.group_by(percussion_note_events, fn note -> note.note end)
@@ -183,8 +188,9 @@ defmodule MapEvents do
       # Get instrument name from mapping, fallback to generic name
       instrument_name = Map.get(percussion_map, pitch, "Percussion #{pitch}")
 
+      # For percussion, all controllers go to each pitch-based track since they affect the whole channel
       # Convert to sonorities (but these will be individual notes, not chords)
-      sonorities = group_into_sonorities(pitch_notes, chord_tolerance, tpqn)
+      sonorities = group_into_sonorities(pitch_notes, percussion_controller_events, chord_tolerance, tpqn)
 
       # For percussion, use the delay of channel 9 (if any)
       delay_quarter_notes = Map.get(channel_delays, 9, 0)
@@ -247,11 +253,12 @@ defmodule MapEvents do
 
 
   @doc """
-  Identifies all note events in a track and calculates their absolute start/end times.
+  Identifies all sonority events (notes and controllers) in a track and calculates their absolute times.
 
   This function pairs note-on and note-off events to create complete note objects
-  with duration information. It handles both standard note-off events and note-on
-  events with zero velocity (which are treated as note-offs according to the MIDI spec).
+  with duration information, and also collects controller events as instantaneous events.
+  It handles both standard note-off events and note-on events with zero velocity 
+  (which are treated as note-offs according to the MIDI spec).
 
   The function also properly handles unmatched note-on events by assigning them
   an end time based on the last event in the track.
@@ -260,17 +267,25 @@ defmodule MapEvents do
     * `events` - List of MIDI events from a track
 
   ## Returns
-    * A list of note data maps with keys:
-      * `:note` - The MIDI note number (0-127)
-      * `:start_time` - Absolute start time in ticks from the beginning of the track
-      * `:end_time` - Absolute end time in ticks
-      * `:velocity` - The note's velocity (0-127)
-      * `:channel` - The MIDI channel (0-15)
+    * A map with keys:
+      * `:notes` - List of note data maps with keys:
+        * `:note` - The MIDI note number (0-127)
+        * `:start_time` - Absolute start time in ticks from the beginning of the track
+        * `:end_time` - Absolute end time in ticks
+        * `:velocity` - The note's velocity (0-127)
+        * `:channel` - The MIDI channel (0-15)
+      * `:controllers` - List of controller data maps with keys:
+        * `:controller_number` - The MIDI controller number (0-127)
+        * `:value` - The controller value (0-127)
+        * `:time` - Absolute time in ticks
+        * `:channel` - The MIDI channel (0-15)
 
   ## Examples
 
-      # Get all notes from a track with their timing information
-      note_events = Midifile.MapEvents.identify_note_events(track.events)
+      # Get all sonority events from a track
+      events = Midifile.MapEvents.identify_sonority_events(track.events)
+      note_events = events.notes
+      controller_events = events.controllers
 
       # Print information about each note
       Enum.each(note_events, fn note ->
@@ -279,14 +294,14 @@ defmodule MapEvents do
                 "duration: # {duration} ticks, velocity: # {note.velocity}")
       end)
   """
-  def identify_note_events(events) do
+  def identify_sonority_events(events) do
     # Calculate absolute times for all events
     events_with_times = add_absolute_times(events)
 
-    # Track note_on events to pair with note_offs
+    # Track note_on events to pair with note_offs and collect controller events
     # Format: %{{channel, note} => {abs_time, velocity}}
-    {notes, note_on_events} =
-      Enum.reduce(events_with_times, {[], %{}}, fn {event, abs_time}, {notes_acc, note_on_acc} ->
+    {notes, controllers, note_on_events} =
+      Enum.reduce(events_with_times, {[], [], %{}}, fn {event, abs_time}, {notes_acc, controllers_acc, note_on_acc} ->
         case event do
           # Handle note_on events (velocity > 0)
           %{symbol: :on, bytes: [_status, note_num, velocity]} when velocity > 0 ->
@@ -294,7 +309,7 @@ defmodule MapEvents do
             key = {channel, note_num}
             # Store this note_on event with its start time and velocity
             new_note_on_acc = Map.put(note_on_acc, key, {abs_time, velocity})
-            {notes_acc, new_note_on_acc}
+            {notes_acc, controllers_acc, new_note_on_acc}
 
           # Handle note_off events
           %{symbol: :off} = event ->
@@ -315,11 +330,11 @@ defmodule MapEvents do
                 }
 
                 # Add to notes list and remove from tracking
-                {[note_data | notes_acc], Map.delete(note_on_acc, key)}
+                {[note_data | notes_acc], controllers_acc, Map.delete(note_on_acc, key)}
 
               nil ->
                 # No corresponding note_on found, ignore
-                {notes_acc, note_on_acc}
+                {notes_acc, controllers_acc, note_on_acc}
             end
 
           # Handle note_on with zero velocity (treated as note_off)
@@ -340,16 +355,27 @@ defmodule MapEvents do
                 }
 
                 # Add to notes list and remove from tracking
-                {[note_data | notes_acc], Map.delete(note_on_acc, key)}
+                {[note_data | notes_acc], controllers_acc, Map.delete(note_on_acc, key)}
 
               nil ->
                 # No corresponding note_on found, ignore
-                {notes_acc, note_on_acc}
+                {notes_acc, controllers_acc, note_on_acc}
             end
+
+          # Handle controller events
+          %{symbol: :controller, bytes: [_status, controller_number, value]} ->
+            channel = Event.channel(event)
+            controller_data = %{
+              controller_number: controller_number,
+              value: value,
+              time: abs_time,
+              channel: channel
+            }
+            {notes_acc, [controller_data | controllers_acc], note_on_acc}
 
           # Ignore all other event types
           _ ->
-            {notes_acc, note_on_acc}
+            {notes_acc, controllers_acc, note_on_acc}
         end
       end)
 
@@ -373,17 +399,23 @@ defmodule MapEvents do
         }
       end)
 
-    Enum.concat(notes, unmatched_notes)
+    all_notes = Enum.concat(notes, unmatched_notes)
+    
+    %{
+      notes: all_notes,
+      controllers: Enum.reverse(controllers)
+    }
   end
 
 
 
   @doc """
-  Groups identified notes into sonorities (Notes, Chords, Rests).
+  Groups identified notes and controllers into sonorities (Notes, Chords, Rests, Controllers).
 
   This function analyzes the timing relationships between notes to determine when
   notes should be considered as individual notes, as parts of chords, or when
-  rests should be inserted between sound events.
+  rests should be inserted between sound events. Controller events are inserted
+  at their exact timing positions as instantaneous Controller sonorities.
 
   The chord_tolerance parameter allows for some flexibility in chord detection.
   Notes that start within the tolerance window will be grouped into a chord,
@@ -392,20 +424,23 @@ defmodule MapEvents do
   not be precisely aligned.
 
   ## Parameters
-    * `note_events` - List of note data maps from identify_note_events/1
+    * `note_events` - List of note data maps from identify_sonority_events/1
+    * `controller_events` - List of controller data maps from identify_sonority_events/1
     * `chord_tolerance` - Time window (in ticks) for grouping notes into chords
     * `tpqn` - Ticks per quarter note value used to calculate durations in beats
 
   ## Returns
-    * A list of Sonority protocol implementations (Note, Chord, Rest) in chronological order
+    * A list of Sonority protocol implementations (Note, Chord, Rest, Controller) in chronological order
 
   ## Examples
 
-      # First identify notes
-      note_events = Midifile.MapEvents.identify_note_events(track.events)
+      # First identify notes and controllers
+      events = Midifile.MapEvents.identify_sonority_events(track.events)
+      note_events = events.notes
+      controller_events = events.controllers
 
       # Then group them into sonorities with a tolerance of 10 ticks
-      sonorities = Midifile.MapEvents.group_into_sonorities(note_events, 10, 960)
+      sonorities = Midifile.MapEvents.group_into_sonorities(note_events, controller_events, 10, 960)
 
       # Count the different types of sonorities
       types = Enum.group_by(sonorities, &Sonority.type/1)
@@ -413,8 +448,26 @@ defmodule MapEvents do
               "# {length(types[:chord] || [])} chords, and " <>
               "# {length(types[:rest] || [])} rests")
   """
-  def group_into_sonorities(note_events, chord_tolerance, tpqn \\ Defaults.default_ppqn) do
-    # Find all unique start and end times
+  def group_into_sonorities(note_events, controller_events, chord_tolerance, tpqn \\ Defaults.default_ppqn) do
+    # First, create sonorities from note events using the original logic
+    note_sonorities = create_note_sonorities(note_events, chord_tolerance, tpqn)
+    
+    # Convert controller events to Controller sonorities
+    controller_sonorities = Enum.map(controller_events, fn controller ->
+      Controller.new(controller.controller_number, controller.value, controller.channel)
+    end)
+    
+    # Merge and sort all sonorities by their timing
+    # Note: Controllers have duration 0, so they should appear at their exact time
+    all_sonorities = merge_sonorities_by_timing(note_sonorities, controller_sonorities, controller_events, tpqn)
+    
+    all_sonorities
+  end
+  
+  @doc false
+  # Create note-based sonorities using the original logic
+  defp create_note_sonorities(note_events, chord_tolerance, tpqn) do
+    # Find all unique start and end times for notes only
     all_times =
       note_events
       |> Enum.flat_map(fn note -> [note.start_time, note.end_time] end)
@@ -433,11 +486,7 @@ defmodule MapEvents do
             note.start_time <= prev_time + chord_tolerance && note.end_time >= current_time
           end)
 
-          #IO.inspect(current_time, label: "current time")
-          #IO.inspect(prev_time, label: "prev time")
           num_quarter_notes = (current_time - prev_time) / tpqn
-          #IO.inspect(number_of_quarter_notes, label: "number qn")
-          #IO.inspect(duration, label: "duration")
           new_sonority = cond do
             # No notes active - create a Rest
             Enum.empty?(active_notes) ->
@@ -456,7 +505,6 @@ defmodule MapEvents do
                 MidiNote.midi_to_note(note.note, num_quarter_notes, note.velocity, note.channel)
               end)
               # Detect chord structure and create using enhanced API
-              #IO.inspect(notes, label: "notes")
               create_enhanced_chord(notes, num_quarter_notes)
           end
 
@@ -470,6 +518,35 @@ defmodule MapEvents do
       end)
 
     Enum.reverse(sonorities)
+  end
+  
+  @doc false
+  # Merge note sonorities and controller sonorities by timing
+  defp merge_sonorities_by_timing(note_sonorities, controller_sonorities, controller_events, tpqn) do
+    # Calculate cumulative time for note sonorities to determine insertion points
+    {note_sonorities_with_times, _} = Enum.reduce(note_sonorities, {[], 0}, fn sonority, {acc, cumulative_time} ->
+      duration_ticks = Sonority.duration(sonority) * tpqn
+      end_time = cumulative_time + duration_ticks
+      {[{sonority, cumulative_time, end_time} | acc], end_time}
+    end)
+    note_sonorities_with_times = Enum.reverse(note_sonorities_with_times)
+    
+    # Create a list of all events (note sonorities and controllers) with their timing
+    controller_events_with_sonorities = Enum.zip(controller_events, controller_sonorities)
+    |> Enum.map(fn {controller_event, controller_sonority} ->
+      {:controller, controller_sonority, controller_event.time}
+    end)
+    
+    note_events_with_sonorities = Enum.map(note_sonorities_with_times, fn {sonority, start_time, _end_time} ->
+      {:note, sonority, start_time}
+    end)
+    
+    # Merge and sort by time
+    all_events = (controller_events_with_sonorities ++ note_events_with_sonorities)
+    |> Enum.sort_by(fn {_type, _sonority, time} -> time end)
+    
+    # Extract just the sonorities in the correct order
+    Enum.map(all_events, fn {_type, sonority, _time} -> sonority end)
   end
 
     @doc false
