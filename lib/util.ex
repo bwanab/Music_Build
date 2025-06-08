@@ -24,12 +24,10 @@ defmodule MusicBuild.Util do
     bpm = Keyword.get(opts, :bpm, 110)
     inst_names = Keyword.get(opts, :inst_names, Enum.map(notes, fn _ -> "UnNamed" end))
     program_numbers = Keyword.get(opts, :program_numbers, Enum.map(notes, fn _ -> 0 end))
-    channel_numbers = Enum.to_list(0..length(notes) - 1)
     name = Path.basename(outpath, Path.extname(outpath))
 
-    tracks = Enum.map(Enum.zip([notes, inst_names, program_numbers, channel_numbers]), fn {track, inst_name, program_number, channel} ->
-      channel = if program_number == 9, do: 9, else: channel
-      TrackBuilder.new(inst_name, track, 960, program_number, channel)
+    tracks = Enum.map(Enum.zip([notes, inst_names, program_numbers]), fn {track, inst_name, program_number} ->
+      TrackBuilder.new(inst_name, track, 960, program_number)
     end)
     sfs = Sequence.new(name, bpm, tracks, tpqn)
     Midifile.write(sfs, outpath)

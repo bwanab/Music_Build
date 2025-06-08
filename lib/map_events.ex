@@ -119,7 +119,7 @@ defmodule MapEvents do
 
       # If this channel starts later, prepend a rest sonority
       final_sonorities = if delay_quarter_notes > 0 do
-        initial_rest = Rest.new(delay_quarter_notes)
+        initial_rest = Rest.new(delay_quarter_notes, channel)
         [initial_rest | sonorities]
       else
         sonorities
@@ -191,7 +191,7 @@ defmodule MapEvents do
 
       # If this instrument starts later, prepend a rest sonority
       final_sonorities = if delay_quarter_notes > 0 do
-        initial_rest = Rest.new(delay_quarter_notes)
+        initial_rest = Rest.new(delay_quarter_notes, 9)
         [initial_rest | sonorities]
       else
         sonorities
@@ -441,19 +441,19 @@ defmodule MapEvents do
           new_sonority = cond do
             # No notes active - create a Rest
             Enum.empty?(active_notes) ->
-              Rest.new(num_quarter_notes)
+              Rest.new(num_quarter_notes, Enum.at(note_events, 0).channel)
 
             # One note active - create a Note
             length(active_notes) == 1 ->
               [note] = active_notes
               # Convert MIDI note to Note struct
-              MidiNote.midi_to_note(note.note, num_quarter_notes, note.velocity)
+              MidiNote.midi_to_note(note.note, num_quarter_notes, note.velocity, note.channel)
 
             # Multiple notes active - create a Chord
             true ->
               # Convert each MIDI note to a Note struct
               notes = Enum.map(active_notes, fn note ->
-                MidiNote.midi_to_note(note.note, num_quarter_notes, note.velocity)
+                MidiNote.midi_to_note(note.note, num_quarter_notes, note.velocity, note.channel)
               end)
               # Detect chord structure and create using enhanced API
               #IO.inspect(notes, label: "notes")
@@ -478,12 +478,14 @@ defmodule MapEvents do
   def create_enhanced_chord(notes, duration) do
     # Fallback to old API if detection fails
     fallback_fn = fn -> Chord.new(notes, duration) end
+    velocity = floor(Enum.sum(Enum.map(notes, fn n -> n.velocity end)) / length(notes))
+    channel = Sonority.channel(Enum.at(notes, 0))
 
     try do
       {root, quality, octave} = detect_chord_from_notes(notes)
 
       # Create the basic chord
-      basic_chord = Chord.new(root, quality, octave, duration)
+      basic_chord = Chord.new(root, quality, octave, duration, 0, velocity, channel)
 
       # Check if any notes aren't part of the basic chord
       # If found, add them as additions
