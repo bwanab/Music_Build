@@ -375,7 +375,6 @@ defmodule MapEvents do
 
           # Ignore all other event types
           _ ->
-            IO.inspect(event, label: "ignored event")
             {notes_acc, controllers_acc, note_on_acc}
         end
       end)
@@ -768,7 +767,7 @@ defmodule MapEvents do
 
       # If this is the first time we see this channel, record its delay
       # Consider both note-on and controller events as valid channel starts
-      if (symbol == :on or symbol == :controller) and not MapSet.member?(seen_channels, channel) do
+      if symbol == :on and not MapSet.member?(seen_channels, channel) do
         delay_quarter_notes = cumulative_time / tpqn
         new_delays = Map.put(delays_acc, channel, delay_quarter_notes)
         new_seen = MapSet.put(seen_channels, channel)
