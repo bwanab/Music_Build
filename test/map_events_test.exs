@@ -329,16 +329,16 @@ defmodule MapEventsTest do
     end)
 
     # Percussion instruments should be the most active
-    percussion_total_count = percussion_keys 
-    |> Enum.map(&channel_tracks[&1].sonorities) 
-    |> Enum.map(&length/1) 
+    percussion_total_count = percussion_keys
+    |> Enum.map(&channel_tracks[&1].sonorities)
+    |> Enum.map(&length/1)
     |> Enum.sum()
-    
-    regular_total_count = regular_channels 
-    |> Enum.map(&channel_tracks[&1].sonorities) 
-    |> Enum.map(&length/1) 
+
+    regular_total_count = regular_channels
+    |> Enum.map(&channel_tracks[&1].sonorities)
+    |> Enum.map(&length/1)
     |> Enum.sum()
-    
+
     # Check that both percussion and regular tracks have reasonable activity
     assert percussion_total_count > 1000, "Percussion should be active with many sonorities"
     assert regular_total_count > 1000, "Regular instruments should be active with many sonorities"
@@ -357,6 +357,11 @@ defmodule MapEventsTest do
     # because each channel has its own timeline
     assert total_sonorities_count > 5000,
       "Separated channels should have substantial total sonorities"
+
+    # In track 0 for this midi file there are no notes played before the first controller event
+    # this is demonstrated by scripts/
+    sonorities_0 = Enum.at(channel_tracks, 0)
+    assert 0 == length(Enum.take_while(sonorities_0.sonorities, fn s -> Sonority.type(s) != :controller end))
   end
 
   test "track_to_sonorities handles percussion option correctly" do
@@ -417,10 +422,10 @@ defmodule MapEventsTest do
     ]
 
     result = MapEvents.identify_sonority_events(events)
-    
+
     assert length(result.notes) == 1
     assert length(result.controllers) == 1
-    
+
     controller = Enum.at(result.controllers, 0)
     assert controller.controller_number == 7
     assert controller.value == 127
@@ -432,18 +437,18 @@ defmodule MapEventsTest do
     note_events = [
       %{note: 60, start_time: 0, end_time: 480, velocity: 80, channel: 0}
     ]
-    
+
     controller_events = [
       %{controller_number: 7, value: 127, time: 240, channel: 0}
     ]
 
     sonorities = MapEvents.group_into_sonorities(note_events, controller_events, 0)
-    
+
     # Should have Note sonority and Controller sonority
     types = Enum.map(sonorities, &Sonority.type/1)
     assert :note in types
     assert :controller in types
-    
+
     # Find the controller sonority
     controller_sonority = Enum.find(sonorities, fn s -> Sonority.type(s) == :controller end)
     assert controller_sonority.controller_number == 7
