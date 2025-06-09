@@ -451,7 +451,8 @@ defmodule MapEvents do
   """
   def group_into_sonorities(note_events, controller_events, chord_tolerance, tpqn \\ Defaults.default_ppqn) do
     # First, create sonorities from note events using the original logic
-    note_sonorities = create_note_sonorities(note_events, chord_tolerance, tpqn)
+    # This now returns {sonority, start_time} tuples
+    note_sonorities_with_times = create_note_sonorities(note_events, chord_tolerance, tpqn)
 
     # Convert controller events to Controller sonorities
     controller_sonorities = Enum.map(controller_events, fn controller ->
@@ -460,13 +461,14 @@ defmodule MapEvents do
 
     # Merge and sort all sonorities by their timing
     # Note: Controllers have duration 0, so they should appear at their exact time
-    all_sonorities = merge_sonorities_by_timing(note_sonorities, controller_sonorities, controller_events, tpqn)
+    all_sonorities = merge_sonorities_by_timing(note_sonorities_with_times, controller_sonorities, controller_events, tpqn)
 
     all_sonorities
   end
 
   @doc false
   # Create note-based sonorities using the original logic
+  # Returns a list of {sonority, start_time} tuples
   defp create_note_sonorities(note_events, chord_tolerance, tpqn) do
     # Find all unique start and end times for notes only
     all_times =
@@ -509,9 +511,9 @@ defmodule MapEvents do
               create_enhanced_chord(notes, num_quarter_notes)
           end
 
-          # Only add sonority if it has duration
+          # Only add sonority if it has duration, and include its start time
           if Sonority.duration(new_sonority) != nil do
-            {[new_sonority | sonorities_acc], current_time}
+            {[{new_sonority, prev_time} | sonorities_acc], current_time}
           else
             {sonorities_acc, current_time}
           end
@@ -523,22 +525,14 @@ defmodule MapEvents do
 
   @doc false
   # Merge note sonorities and controller sonorities by timing
-  defp merge_sonorities_by_timing(note_sonorities, controller_sonorities, controller_events, tpqn) do
-    # Calculate cumulative time for note sonorities to determine insertion points
-    {note_sonorities_with_times, _} = Enum.reduce(note_sonorities, {[], 0}, fn sonority, {acc, cumulative_time} ->
-      duration_ticks = Sonority.duration(sonority) * tpqn
-      end_time = cumulative_time + duration_ticks
-      {[{sonority, cumulative_time, end_time} | acc], end_time}
-    end)
-    note_sonorities_with_times = Enum.reverse(note_sonorities_with_times)
-
+  defp merge_sonorities_by_timing(note_sonorities_with_times, controller_sonorities, controller_events, _tpqn) do
     # Create a list of all events (note sonorities and controllers) with their timing
     controller_events_with_sonorities = Enum.zip(controller_events, controller_sonorities)
     |> Enum.map(fn {controller_event, controller_sonority} ->
       {:controller, controller_sonority, controller_event.time}
     end)
 
-    note_events_with_sonorities = Enum.map(note_sonorities_with_times, fn {sonority, start_time, _end_time} ->
+    note_events_with_sonorities = Enum.map(note_sonorities_with_times, fn {sonority, start_time} ->
       {:note, sonority, start_time}
     end)
 
@@ -773,7 +767,8 @@ defmodule MapEvents do
       new_cumulative_time = cumulative_time + delta
 
       # If this is the first time we see this channel, record its delay
-      if symbol == :on and not MapSet.member?(seen_channels, channel) do
+      # Consider both note-on and controller events as valid channel starts
+      if (symbol == :on or symbol == :controller) and not MapSet.member?(seen_channels, channel) do
         delay_quarter_notes = cumulative_time / tpqn
         new_delays = Map.put(delays_acc, channel, delay_quarter_notes)
         new_seen = MapSet.put(seen_channels, channel)

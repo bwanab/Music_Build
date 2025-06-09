@@ -359,8 +359,8 @@ defmodule MapEventsTest do
       "Separated channels should have substantial total sonorities"
 
     # In track 0 for this midi file there are no notes played before the first controller event
-    # this is demonstrated by scripts/
-    sonorities_0 = Enum.at(channel_tracks, 0)
+    # this is demonstrated by scripts/demo_controller_bug.exs
+    sonorities_0 = channel_tracks[0]
     assert 0 == length(Enum.take_while(sonorities_0.sonorities, fn s -> Sonority.type(s) != :controller end))
   end
 
