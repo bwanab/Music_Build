@@ -34,7 +34,18 @@ defmodule MusicBuild.Util do
   end
 
   @spec write_file([Sonority.t()], binary(), atom(), keyword()) :: :ok
-  def write_file(notes, name, out_type \\ :midi, opts \\ []) do
+  def write_file(strack_map, name, out_type \\ :midi, opts \\ [])
+  def write_file(strack_map, name, out_type, opts) when is_map(strack_map) do
+    case out_type do
+      :midi -> write_midi_file(strack_map, name, opts)
+      :lily ->
+        strack_list = Map.values(strack_map)
+        tempo = Enum.at(strack_list, 0).bpm
+        write_file(Enum.map(strack_list, fn s -> s.sonorities end), name, :lily, Keyword.put(opts, :bpm, tempo))
+    end
+  end
+
+  def write_file(notes, name, out_type, opts) do
     case out_type do
       :midi ->
         out_path = if Path.extname(name) == "", do: Keyword.get(opts, :out_path, "./midi/#{name}.mid"), else: name
@@ -53,6 +64,7 @@ defmodule MusicBuild.Util do
         )
     end
   end
+
 
   @spec get_track_name(Midifile.Sequence.t(), Integer) :: binary()
   def get_track_name(seq, track_num) do
