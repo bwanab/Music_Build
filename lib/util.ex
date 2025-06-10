@@ -7,6 +7,7 @@ defmodule MusicBuild.Util do
   def write_midi_file(n, o, opts \\ [])
   def write_midi_file(strack_map, outpath, opts) when is_map(strack_map) do
 
+    bpm = Map.get(strack_map, Enum.at(Map.keys(strack_map), 0)).bpm
     [tracks, names, program_numbers] = Map.values(strack_map)
       |> Enum.map(fn %STrack{name: name, sonorities: sonorities, program_number: program_number} ->
         use_name = if is_nil(name), do: "Unnamed", else: name
@@ -14,7 +15,10 @@ defmodule MusicBuild.Util do
       end)
       |> unzip_n()
 
-    opts = opts |> Keyword.put(:inst_names, names) |> Keyword.put(:program_numbers, program_numbers)
+    opts = opts
+          |> Keyword.put(:inst_names, names)
+          |> Keyword.put(:program_numbers, program_numbers)
+          |> Keyword.put(:bpm, bpm)
     write_midi_file(tracks, outpath, opts)
   end
 
