@@ -768,7 +768,7 @@ defmodule MapEvents do
       # If this is the first time we see this channel, record its delay
       # Consider both note-on and controller events as valid channel starts
       if symbol == :on and not MapSet.member?(seen_channels, channel) do
-        delay_quarter_notes = cumulative_time / tpqn
+        delay_quarter_notes = new_cumulative_time / tpqn
         new_delays = Map.put(delays_acc, channel, delay_quarter_notes)
         new_seen = MapSet.put(seen_channels, channel)
         {new_delays, new_cumulative_time, new_seen}
