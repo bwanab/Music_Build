@@ -364,6 +364,12 @@ defmodule MapEventsTest do
     sonorities_before_first_controller = Enum.take_while(sonorities_0.sonorities, fn s -> Sonority.type(s) != :controller end)
     assert 1 == length(sonorities_before_first_controller)
     assert Enum.all?(sonorities_before_first_controller, fn s -> Sonority.type(s) == :rest end )
+
+    # same test for channel 4 which has the first note in the file
+    sonorities_4 = channel_tracks[4]
+    sonorities_before_first_controller = Enum.take_while(sonorities_4.sonorities, fn s -> Sonority.type(s) != :controller end)
+    assert 1 == length(sonorities_before_first_controller)
+    assert Enum.all?(sonorities_before_first_controller, fn s -> Sonority.type(s) == :rest end )
   end
 
   test "track_to_sonorities handles percussion option correctly" do

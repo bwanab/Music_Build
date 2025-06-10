@@ -1,6 +1,6 @@
 %{
   "better_weighted_random": {:hex, :better_weighted_random, "0.1.0", "dcd4c4ac9652ea3bc7d648b37607b40f9d2a35b990317ed7d9593c2ffeccf493", [:mix], [], "hexpm", "90d4e83e020685635bab09224b28a2be53a681a42d7009b2d7ec9d27e352b253"},
   "csv": {:hex, :csv, "3.2.2", "452f96414b39a176b7c390af6d8b78f15130dc6167fe3b836729131f515d843e", [:mix], [], "hexpm", "cbf256ff74a3fa01d9ec420d07b19c90d410ed9fe5b6d6e1bc7662edf35bc574"},
-  "midifile": {:git, "https://github.com/bwanab/elixir-midifile.git", "f3c570a559559691bc6b9083c5b8ad972e35a755", []},
-  "music_prims": {:git, "https://github.com/bwanab/music_prims.git", "a636aa315aa6f4346916950e54cfdafe656b0b8d", []},
+  "midifile": {:git, "https://github.com/bwanab/elixir-midifile.git", "d66cc6b9af0e06dcb03d101ed703c3cf4cdeb8ee", []},
+  "music_prims": {:git, "https://github.com/bwanab/music_prims.git", "a886befa1340893f1294d3565894c8f99f90a226",[]}
 }
