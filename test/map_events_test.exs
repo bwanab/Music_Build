@@ -38,7 +38,8 @@ defmodule MapEventsTest do
       %{note: 64, start_time: 480, end_time: 720, velocity: 70, channel: 0} # E4
     ]
 
-    sonorities = MapEvents.group_into_sonorities(note_events, [], [], 0)
+    events = %{note_events: note_events, controller_events: [], pitch_bend_events: []}
+    sonorities = MapEvents.group_into_sonorities(events, 0)
 
     # We should have 3 sonorities: Note, Rest, Note
     assert length(sonorities) == 3
@@ -67,7 +68,8 @@ defmodule MapEventsTest do
       %{note: 67, start_time: 360, end_time: 1320, velocity: 75, channel: 0}  # G4
     ]
 
-    sonorities = MapEvents.group_into_sonorities(note_events, [], [], 5)
+    events = %{note_events: note_events, controller_events: [], pitch_bend_events: []}
+    sonorities = MapEvents.group_into_sonorities(events, 5)
 
     # We should have 3 sonorities: Note, Chord(2 notes), Chord(3 notes)
     assert length(sonorities) == 5
@@ -450,7 +452,8 @@ defmodule MapEventsTest do
       %{controller_number: 7, value: 127, time: 240, channel: 0}
     ]
 
-    sonorities = MapEvents.group_into_sonorities(note_events, controller_events, [], 0)
+    events = %{note_events: note_events, controller_events: controller_events, pitch_bend_events: []}
+    sonorities = MapEvents.group_into_sonorities(events, 0)
 
     # Should have Note sonority and Controller sonority
     types = Enum.map(sonorities, &Sonority.type/1)

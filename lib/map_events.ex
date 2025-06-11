@@ -92,18 +92,30 @@ defmodule MapEvents do
     # Determine if we should use percussion processing
     use_percussion_processing = has_percussion or is_percussion
 
+    # Create events map for processing
+    events = %{
+      note_events: note_events,
+      controller_events: controller_events,
+      pitch_bend_events: pitch_bend_events
+    }
+
     if use_percussion_processing do
       # Process percussion tracks by splitting on pitch rather than channel
-      process_percussion_track(note_events, controller_events, pitch_bend_events, track_name, chord_tolerance, tpqn, sequence, track_number, track_offset)
+      process_percussion_track(events, track_name, chord_tolerance, tpqn, sequence, track_number, track_offset)
     else
       # Original channel-based processing for non-percussion tracks
-      process_regular_track(note_events, controller_events, pitch_bend_events, track_name, chord_tolerance, tpqn, sequence, track_number, track_offset)
+      process_regular_track(events, track_name, chord_tolerance, tpqn, sequence, track_number, track_offset)
     end
   end
 
   @doc false
   # Process regular (non-percussion) tracks by grouping events by channel
-  defp process_regular_track(note_events, controller_events, pitch_bend_events, track_name, chord_tolerance, tpqn, sequence, track_number, track_offset) do
+  defp process_regular_track(events, track_name, chord_tolerance, tpqn, sequence, track_number, track_offset) do
+    # Extract event lists from the map
+    note_events = Map.get(events, :note_events, [])
+    controller_events = Map.get(events, :controller_events, [])
+    pitch_bend_events = Map.get(events, :pitch_bend_events, [])
+
     # Group note events, controller events, and pitch_bend events by channel
     notes_by_channel = Enum.group_by(note_events, fn note -> note.channel end)
     controllers_by_channel = Enum.group_by(controller_events, fn controller -> controller.channel end)
@@ -120,7 +132,13 @@ defmodule MapEvents do
     Enum.into(notes_by_channel, %{}, fn {channel, channel_notes} ->
       channel_controllers = Map.get(controllers_by_channel, channel, [])
       channel_pitch_bends = Map.get(pitch_bends_by_channel, channel, [])
-      sonorities = group_into_sonorities(channel_notes, channel_controllers, channel_pitch_bends, chord_tolerance, tpqn)
+      
+      channel_events = %{
+        note_events: channel_notes,
+        controller_events: channel_controllers,
+        pitch_bend_events: channel_pitch_bends
+      }
+      sonorities = group_into_sonorities(channel_events, chord_tolerance, tpqn)
 
       # Get the delay for this channel based on note-on events
       channel_delay_quarter_notes = Map.get(channel_delays, channel, 0)
@@ -153,7 +171,12 @@ defmodule MapEvents do
 
   @doc false
   # Process percussion tracks by grouping events by pitch (instrument)
-  defp process_percussion_track(note_events, controller_events, pitch_bend_events, base_track_name, chord_tolerance, tpqn, sequence, track_number, track_offset) do
+  defp process_percussion_track(events, base_track_name, chord_tolerance, tpqn, sequence, track_number, track_offset) do
+    # Extract event lists from the map
+    note_events = Map.get(events, :note_events, [])
+    controller_events = Map.get(events, :controller_events, [])
+    pitch_bend_events = Map.get(events, :pitch_bend_events, [])
+    
     # Load percussion instrument mapping
     percussion_map = read_percussion_mapping()
 
@@ -169,7 +192,12 @@ defmodule MapEvents do
 
       # Process non-percussion events using regular processing
       non_perc_result = if length(non_perc_events) > 0 do
-        process_regular_track(non_perc_events, non_perc_controllers, non_perc_pitch_bends, base_track_name, chord_tolerance, tpqn, sequence, track_number, track_offset)
+        non_perc_events_map = %{
+          note_events: non_perc_events,
+          controller_events: non_perc_controllers,
+          pitch_bend_events: non_perc_pitch_bends
+        }
+        process_regular_track(non_perc_events_map, base_track_name, chord_tolerance, tpqn, sequence, track_number, track_offset)
       else
         %{}
       end
@@ -199,7 +227,12 @@ defmodule MapEvents do
 
       # For percussion, all controllers and pitch_bends go to each pitch-based track since they affect the whole channel
       # Convert to sonorities (but these will be individual notes, not chords)
-      sonorities = group_into_sonorities(pitch_notes, percussion_controller_events, percussion_pitch_bend_events, chord_tolerance, tpqn)
+      pitch_events = %{
+        note_events: pitch_notes,
+        controller_events: percussion_controller_events,
+        pitch_bend_events: percussion_pitch_bend_events
+      }
+      sonorities = group_into_sonorities(pitch_events, chord_tolerance, tpqn)
 
       # For percussion, use the delay of channel 9 (if any)
       channel_delay_quarter_notes = Map.get(channel_delays, 9, 0)
@@ -455,9 +488,10 @@ defmodule MapEvents do
   not be precisely aligned.
 
   ## Parameters
-    * `note_events` - List of note data maps from identify_sonority_events/1
-    * `controller_events` - List of controller data maps from identify_sonority_events/1
-    * `pitch_bend_events` - List of pitch bend data maps from identify_sonority_events/1
+    * `events` - Map containing event lists with keys:
+      * `:note_events` - List of note data maps from identify_sonority_events/1
+      * `:controller_events` - List of controller data maps from identify_sonority_events/1
+      * `:pitch_bend_events` - List of pitch bend data maps from identify_sonority_events/1
     * `chord_tolerance` - Time window (in ticks) for grouping notes into chords
     * `tpqn` - Ticks per quarter note value used to calculate durations in beats
 
@@ -466,14 +500,11 @@ defmodule MapEvents do
 
   ## Examples
 
-      # First identify notes, controllers, and pitch_bends
+      # First identify all event types
       events = Midifile.MapEvents.identify_sonority_events(track.events)
-      note_events = events.notes
-      controller_events = events.controllers
-      pitch_bend_events = events.pitch_bends
 
       # Then group them into sonorities with a tolerance of 10 ticks
-      sonorities = Midifile.MapEvents.group_into_sonorities(note_events, controller_events, pitch_bend_events, 10, 960)
+      sonorities = Midifile.MapEvents.group_into_sonorities(events, 10, 960)
 
       # Count the different types of sonorities
       types = Enum.group_by(sonorities, &Sonority.type/1)
@@ -481,7 +512,12 @@ defmodule MapEvents do
               "# {length(types[:chord] || [])} chords, and " <>
               "# {length(types[:rest] || [])} rests")
   """
-  def group_into_sonorities(note_events, controller_events, pitch_bend_events, chord_tolerance, tpqn \\ Defaults.default_ppqn) do
+  def group_into_sonorities(events, chord_tolerance, tpqn \\ Defaults.default_ppqn) do
+    # Extract event lists from the map
+    note_events = Map.get(events, :note_events, [])
+    controller_events = Map.get(events, :controller_events, [])
+    pitch_bend_events = Map.get(events, :pitch_bend_events, [])
+
     # First, create sonorities from note events using the original logic
     # This now returns {sonority, start_time} tuples
     note_sonorities_with_times = create_note_sonorities(note_events, chord_tolerance, tpqn)
@@ -498,7 +534,16 @@ defmodule MapEvents do
 
     # Merge and sort all sonorities by their timing
     # Note: Controllers and PitchBends have duration 0, so they should appear at their exact time
-    all_sonorities = merge_sonorities_by_timing(note_sonorities_with_times, controller_sonorities, controller_events, pitch_bend_sonorities, pitch_bend_events, tpqn)
+    sonorities_map = %{
+      note_sonorities_with_times: note_sonorities_with_times,
+      controller_sonorities: controller_sonorities,
+      pitch_bend_sonorities: pitch_bend_sonorities
+    }
+    events_map = %{
+      controller_events: controller_events,
+      pitch_bend_events: pitch_bend_events
+    }
+    all_sonorities = merge_sonorities_by_timing(sonorities_map, events_map, tpqn)
 
     all_sonorities
   end
@@ -562,7 +607,15 @@ defmodule MapEvents do
 
   @doc false
   # Merge note sonorities, controller sonorities, and pitch_bend sonorities by timing
-  defp merge_sonorities_by_timing(note_sonorities_with_times, controller_sonorities, controller_events, pitch_bend_sonorities, pitch_bend_events, _tpqn) do
+  defp merge_sonorities_by_timing(sonorities_map, events_map, _tpqn) do
+    # Extract from maps with defaults
+    note_sonorities_with_times = Map.get(sonorities_map, :note_sonorities_with_times, [])
+    controller_sonorities = Map.get(sonorities_map, :controller_sonorities, [])
+    pitch_bend_sonorities = Map.get(sonorities_map, :pitch_bend_sonorities, [])
+    
+    controller_events = Map.get(events_map, :controller_events, [])
+    pitch_bend_events = Map.get(events_map, :pitch_bend_events, [])
+
     # Create a list of all events (note sonorities, controllers, and pitch_bends) with their timing
     controller_events_with_sonorities = Enum.zip(controller_events, controller_sonorities)
     |> Enum.map(fn {controller_event, controller_sonority} ->
