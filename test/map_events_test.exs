@@ -38,7 +38,7 @@ defmodule MapEventsTest do
       %{note: 64, start_time: 480, end_time: 720, velocity: 70, channel: 0} # E4
     ]
 
-    sonorities = MapEvents.group_into_sonorities(note_events, [], 0)
+    sonorities = MapEvents.group_into_sonorities(note_events, [], [], 0)
 
     # We should have 3 sonorities: Note, Rest, Note
     assert length(sonorities) == 3
@@ -67,7 +67,7 @@ defmodule MapEventsTest do
       %{note: 67, start_time: 360, end_time: 1320, velocity: 75, channel: 0}  # G4
     ]
 
-    sonorities = MapEvents.group_into_sonorities(note_events, [], 5)
+    sonorities = MapEvents.group_into_sonorities(note_events, [], [], 5)
 
     # We should have 3 sonorities: Note, Chord(2 notes), Chord(3 notes)
     assert length(sonorities) == 5
@@ -450,7 +450,7 @@ defmodule MapEventsTest do
       %{controller_number: 7, value: 127, time: 240, channel: 0}
     ]
 
-    sonorities = MapEvents.group_into_sonorities(note_events, controller_events, 0)
+    sonorities = MapEvents.group_into_sonorities(note_events, controller_events, [], 0)
 
     # Should have Note sonority and Controller sonority
     types = Enum.map(sonorities, &Sonority.type/1)
@@ -463,5 +463,46 @@ defmodule MapEventsTest do
     assert controller_sonority.value == 127
     assert controller_sonority.channel == 0
     assert Sonority.duration(controller_sonority) == 0
+  end
+
+  test "track_to_sonorities handles pitch_bend events from mvoyage.mid" do
+    # Test with the actual mvoyage.mid file that contains pitch_bend events
+    sequence = Midifile.read("midi/mvoyage.mid")
+    
+    # Process the first track which contains pitch_bend events
+    channel_tracks = MapEvents.track_to_sonorities(sequence, 0)
+    
+    # Get all sonorities from all channels
+    all_sonorities = Map.values(channel_tracks)
+    |> Enum.flat_map(fn strack -> strack.sonorities end)
+    
+    # Find pitch_bend sonorities
+    pitch_bend_sonorities = Enum.filter(all_sonorities, fn s -> 
+      Sonority.type(s) == :pitch_bend 
+    end)
+    
+    # Should have found pitch_bend events
+    assert length(pitch_bend_sonorities) > 0
+    
+    # Check that pitch_bend sonorities have correct properties
+    first_pitch_bend = List.first(pitch_bend_sonorities)
+    assert Sonority.type(first_pitch_bend) == :pitch_bend
+    assert Sonority.duration(first_pitch_bend) == 0  # Instantaneous events
+    assert first_pitch_bend.value >= 0 and first_pitch_bend.value <= 16383  # 14-bit range
+    assert first_pitch_bend.channel >= 0 and first_pitch_bend.channel <= 15  # Valid MIDI channel
+    
+    # Verify EventBuilder can create MIDI events from pitch_bend sonorities
+    midi_events = MusicBuild.EventBuilder.new(:pitch_bend, first_pitch_bend)
+    assert length(midi_events) == 1
+    
+    [event] = midi_events
+    assert event.symbol == :pitch_bend
+    assert length(event.bytes) == 3
+    [status, lsb, msb] = event.bytes
+    assert status >= 224 and status <= 239  # Pitch bend status bytes (0xE0-0xEF)
+    
+    # Verify the value can be reconstructed
+    reconstructed_value = (msb * 128) + lsb
+    assert reconstructed_value == first_pitch_bend.value
   end
 end

@@ -13,13 +13,14 @@ defmodule MusicBuild.EventBuilder do
   alias Rest
   alias Arpeggio
   alias Controller
+  alias PitchBend
 
   @doc """
   Creates MIDI events from a sonority.
 
   ## Parameters
 
-    * `sonority_type` - The type of sonority (:note, :chord, :rest, :arpeggio, :controller)
+    * `sonority_type` - The type of sonority (:note, :chord, :rest, :arpeggio, :controller, :pitch_bend)
     * `sonority` - The sonority to convert
     * `tpqn` - Ticks per quarter note (default: 960)
 
@@ -68,6 +69,16 @@ defmodule MusicBuild.EventBuilder do
     channel = Sonority.channel(controller)
     [
       %Event{symbol: :controller, delta_time: 0, bytes: [176 + channel, controller.controller_number, controller.value]}
+    ]
+  end
+
+  def new(:pitch_bend, pitch_bend, _tpqn) do
+    channel = Sonority.channel(pitch_bend)
+    # Convert 14-bit value to two 7-bit bytes (LSB, MSB)
+    lsb = pitch_bend.value |> Bitwise.band(0x7F)
+    msb = pitch_bend.value |> Bitwise.bsr(7) |> Bitwise.band(0x7F)
+    [
+      %Event{symbol: :pitch_bend, delta_time: 0, bytes: [224 + channel, lsb, msb]}
     ]
   end
 
