@@ -115,7 +115,7 @@ defmodule MapEventsTest do
 
   end
 
-  test "track_to_sonorities converts MIDI track to sequence of sonorities" do
+  test "one_track_to_sonorities converts MIDI track to sequence of sonorities" do
     # Create a track with a simple C major chord arpeggio
     events = [
       %Event{symbol: :on, delta_time: 0, bytes: [0x90, 60, 80]},    # C4 on
@@ -137,7 +137,7 @@ defmodule MapEventsTest do
       time_basis: :metrical_time
     }
 
-    channel_tracks = MapEvents.track_to_sonorities(sequence, 0)
+    channel_tracks = MapEvents.one_track_to_sonorities(sequence, 0)
     sonorities = channel_tracks[0].sonorities  # Get channel 0 sonorities
 
     # We should have 5 sonorities: 3 notes, 1 rest, 1 note
@@ -153,7 +153,7 @@ defmodule MapEventsTest do
     assert note_pitches == [:C, :E, :G, :C]
   end
 
-  test "track_to_sonorities identifies chords with chord_tolerance" do
+  test "one_track_to_sonorities identifies chords with chord_tolerance" do
     # Create a track with a C major chord with slightly offset start times
     events = [
       %Event{symbol: :on, delta_time: 0, bytes: [0x90, 60, 80]},     # C4 on
@@ -176,7 +176,7 @@ defmodule MapEventsTest do
     }
 
     # Test without chord tolerance - should get separate notes
-    channel_tracks_no_tolerance = MapEvents.track_to_sonorities(sequence, 0, chord_tolerance: 0)
+    channel_tracks_no_tolerance = MapEvents.one_track_to_sonorities(sequence, 0, chord_tolerance: 0)
     sonorities_no_tolerance = channel_tracks_no_tolerance[0].sonorities  # Get channel 0 sonorities
     types_no_tolerance = Enum.map(sonorities_no_tolerance, &Sonority.type/1)
     # Without tolerance, we might get a mix of notes and chords depending on timing
@@ -184,7 +184,7 @@ defmodule MapEventsTest do
     assert note_and_chord_count >= 2
 
     # Test with chord tolerance - should identify the chord
-    channel_tracks_with_tolerance = MapEvents.track_to_sonorities(sequence, 0, chord_tolerance: 10)
+    channel_tracks_with_tolerance = MapEvents.one_track_to_sonorities(sequence, 0, chord_tolerance: 10)
     sonorities_with_tolerance = channel_tracks_with_tolerance[0].sonorities  # Get channel 0 sonorities
 
     # Should have at least one chord
@@ -203,7 +203,7 @@ defmodule MapEventsTest do
     assert MapSet.equal?(chord_notes, expected_notes)
   end
 
-  test "track_to_sonorities works with a MIDI file" do
+  test "one_track_to_sonorities works with a MIDI file" do
     # Create a simple test track instead of loading a file
     events = [
       %Event{symbol: :on, delta_time: 0, bytes: [0x90, 60, 80]},    # C4 on
@@ -220,7 +220,7 @@ defmodule MapEventsTest do
       time_basis: :metrical_time
     }
 
-    channel_tracks = MapEvents.track_to_sonorities(sequence, 0)
+    channel_tracks = MapEvents.one_track_to_sonorities(sequence, 0)
     sonorities = channel_tracks[0].sonorities  # Get channel 0 sonorities
 
     # Basic validation - we should have some sonorities
@@ -235,12 +235,12 @@ defmodule MapEventsTest do
     assert first_note.note == :C
   end
 
-  test "track_to_sonorities processes test_sonorities.mid with all sonority types" do
+  test "one_track_to_sonorities processes test_sonorities.mid with all sonority types" do
     # Load the test file that contains examples of all three sonority types
     sequence = Midifile.read("midi/test_sonorities.mid")
 
     # Map to sonorities
-    channel_tracks = MapEvents.track_to_sonorities(sequence, 0)
+    channel_tracks = MapEvents.one_track_to_sonorities(sequence, 0)
     sonorities = channel_tracks[0].sonorities  # Get channel 0 sonorities
 
     # Verify we have all three types of sonorities
@@ -294,11 +294,11 @@ defmodule MapEventsTest do
     assert Sonority.duration(rest) == 1
   end
 
-  test "track_to_sonorities separates multi-channel MIDI file into channel tracks and percussion instruments" do
+  test "one_track_to_sonorities separates multi-channel MIDI file into channel tracks and percussion instruments" do
     # Test with Diana Krall MIDI file that has multiple channels including percussion
     sequence = Midifile.read("midi/Diana_Krall_-_The_Look_Of_Love.mid")
 
-    channel_tracks = MapEvents.track_to_sonorities(sequence, 0)
+    channel_tracks = MapEvents.one_track_to_sonorities(sequence, 0)
 
     # Should have 7 regular channels plus multiple percussion instruments (16 total based on current output)
     assert map_size(channel_tracks) == 16
@@ -374,7 +374,7 @@ defmodule MapEventsTest do
     assert Enum.all?(sonorities_before_first_controller, fn s -> Sonority.type(s) == :rest end )
   end
 
-  test "track_to_sonorities handles percussion option correctly" do
+  test "one_track_to_sonorities handles percussion option correctly" do
     # Create a simple sequence with some non-percussion notes
     track = %Midifile.Track{
       events: [
@@ -390,12 +390,12 @@ defmodule MapEventsTest do
     }
 
     # Test without is_percussion option (should be treated as regular track)
-    regular_result = MapEvents.track_to_sonorities(sequence, 0)
+    regular_result = MapEvents.one_track_to_sonorities(sequence, 0)
     assert Map.has_key?(regular_result, 0), "Should have channel 0"
     assert map_size(regular_result) == 1, "Should have only one channel"
 
     # Test with is_percussion: true option (should split by pitch)
-    percussion_result = MapEvents.track_to_sonorities(sequence, 0, is_percussion: true)
+    percussion_result = MapEvents.one_track_to_sonorities(sequence, 0, is_percussion: true)
     assert Map.has_key?(percussion_result, "percussion_60"), "Should have percussion track for pitch 60"
     assert Map.has_key?(percussion_result, "percussion_64"), "Should have percussion track for pitch 64"
     assert map_size(percussion_result) == 2, "Should have two percussion instruments"
@@ -410,7 +410,7 @@ defmodule MapEventsTest do
   test "percussion mapping uses CSV file when available" do
     # Test that percussion mapping correctly reads from CSV and assigns proper names
     sequence = Midifile.read("midi/Diana_Krall_-_The_Look_Of_Love.mid")
-    channel_tracks = MapEvents.track_to_sonorities(sequence, 0)
+    channel_tracks = MapEvents.one_track_to_sonorities(sequence, 0)
 
     # Check that specific percussion instruments have proper names from CSV
     if Map.has_key?(channel_tracks, "percussion_42") do
@@ -468,12 +468,12 @@ defmodule MapEventsTest do
     assert Sonority.duration(controller_sonority) == 0
   end
 
-  test "track_to_sonorities handles pitch_bend events from mvoyage.mid" do
+  test "one_track_to_sonorities handles pitch_bend events from mvoyage.mid" do
     # Test with the actual mvoyage.mid file that contains pitch_bend events
     sequence = Midifile.read("midi/mvoyage.mid")
 
     # Process the first track which contains pitch_bend events
-    channel_tracks = MapEvents.track_to_sonorities(sequence, 0)
+    channel_tracks = MapEvents.one_track_to_sonorities(sequence, 0)
 
     # Get all sonorities from all channels
     all_sonorities = Map.values(channel_tracks)

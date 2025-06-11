@@ -9,7 +9,7 @@ seq = Midifile.read("midi/01Duet_1.mid")
 
 length(seq.tracks)   # results in 2 for this track.
 
-# my first naive reading of this file was: stm = Enum.reduce(0..length(seq.tracks) - 1, %{}, fn idx, acc -> Map.merge(acc, MapEvents.track_to_sonorities(seq, idx)) end)
+# my first naive reading of this file was: stm = Enum.reduce(0..length(seq.tracks) - 1, %{}, fn idx, acc -> Map.merge(acc, MapEvents.one_track_to_sonorities(seq, idx)) end)
 # But, given the following, that produces an unsynchronized map of STracks.
 
 # the two tracks have identical starting times after identify_sonority_events

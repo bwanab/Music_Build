@@ -16,14 +16,14 @@ defmodule MultiTrackSyncTest do
       assert Map.get(offsets, 1) == 128
     end
 
-    test "track_to_sonorities applies track_offset correctly" do
+    test "one_track_to_sonorities applies track_offset correctly" do
       seq = Midifile.read("midi/01Duet_1.mid")
       
       # Process track 1 without offset (old behavior)
-      track_1_no_offset = MapEvents.track_to_sonorities(seq, 1)
+      track_1_no_offset = MapEvents.one_track_to_sonorities(seq, 1)
       
       # Process track 1 with offset (new behavior)
-      track_1_with_offset = MapEvents.track_to_sonorities(seq, 1, track_offset: 128)
+      track_1_with_offset = MapEvents.one_track_to_sonorities(seq, 1, track_offset: 128)
       
       # The track with offset should have a Rest sonority at the beginning
       # Get the first channel's first sonority
@@ -43,15 +43,15 @@ defmodule MultiTrackSyncTest do
       assert Sonority.duration(first_sonority_with_offset) == expected_rest_duration
     end
 
-    test "sequence_to_synchronized_sonorities synchronizes all tracks" do
+    test "all_tracks_to_sonorities synchronizes all tracks" do
       seq = Midifile.read("midi/01Duet_1.mid")
       
       # Process all tracks with synchronization
-      synchronized_tracks = MapEvents.sequence_to_synchronized_sonorities(seq)
+      synchronized_tracks = MapEvents.all_tracks_to_sonorities(seq)
       
       # Process tracks individually without synchronization  
-      track_0_unsync = MapEvents.track_to_sonorities(seq, 0)
-      track_1_unsync = MapEvents.track_to_sonorities(seq, 1)
+      track_0_unsync = MapEvents.one_track_to_sonorities(seq, 0)
+      track_1_unsync = MapEvents.one_track_to_sonorities(seq, 1)
       
       # All tracks should be present in synchronized result
       # Note: channels from different tracks don't overlap in this test file
@@ -87,10 +87,10 @@ defmodule MultiTrackSyncTest do
       seq = Midifile.read("midi/01Duet_1.mid")
       
       # Process single track the old way
-      track_0_old = MapEvents.track_to_sonorities(seq, 0)
+      track_0_old = MapEvents.one_track_to_sonorities(seq, 0)
       
       # Process single track with explicit 0 offset
-      track_0_new = MapEvents.track_to_sonorities(seq, 0, track_offset: 0)
+      track_0_new = MapEvents.one_track_to_sonorities(seq, 0, track_offset: 0)
       
       # Should be identical
       assert track_0_old == track_0_new

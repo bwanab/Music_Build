@@ -17,7 +17,7 @@ defmodule MapEvents do
   ## Example
 
       # Convert MIDI track to sonorities
-      sonorities = Midifile.MapEvents.track_to_sonorities(track, %{chord_tolerance: 10})
+      sonorities = Midifile.MapEvents.one_track_to_sonorities(track, %{chord_tolerance: 10})
 
       # Process individual sonorities
       Enum.each(sonorities, fn sonority ->
@@ -42,7 +42,7 @@ defmodule MapEvents do
 
   ## Parameters
     * `sequence` - A `Midifile.Sequence` struct containing multiple tracks
-    * `opts` - Options map passed to track_to_sonorities for each track
+    * `opts` - Options map passed to one_track_to_sonorities for each track
 
   ## Returns
     * A map containing all channels from all tracks, with proper timing synchronization
@@ -50,13 +50,13 @@ defmodule MapEvents do
   ## Examples
 
       # Process a multi-track MIDI file with synchronization
-      all_tracks = MapEvents.sequence_to_synchronized_sonorities(sequence)
+      all_tracks = MapEvents.all_tracks_to_sonorities(sequence)
 
       # Access tracks from different original MIDI tracks
       track_0_channels = Map.take(all_tracks, [0, 1, 2])  # Channels from track 0
       track_1_channels = Map.take(all_tracks, [3, 4, 5])  # Channels from track 1
   """
-  def sequence_to_synchronized_sonorities(sequence, opts \\ []) do
+  def all_tracks_to_sonorities(sequence, opts \\ []) do
     track_offsets = calculate_track_starting_offsets(sequence)
 
     sequence.tracks
@@ -65,7 +65,7 @@ defmodule MapEvents do
       offset_ticks = Map.get(track_offsets, index, 0)
       offset_opts = Keyword.put(opts, :track_offset, offset_ticks)
 
-      track_sonorities = track_to_sonorities(sequence, index, offset_opts)
+      track_sonorities = one_track_to_sonorities(sequence, index, offset_opts)
       Map.merge(acc, track_sonorities)
     end)
   end
@@ -94,17 +94,17 @@ defmodule MapEvents do
   ## Examples
 
       # Basic usage with default options
-      channel_tracks = Midifile.MapEvents.track_to_sonorities(sequence, 0)
+      channel_tracks = Midifile.MapEvents.one_track_to_sonorities(sequence, 0)
 
       # Access individual channel tracks
       piano_track = channel_tracks[0]  # Channel 0 sonorities
       drums_track = channel_tracks[9]  # Channel 9 (drums) sonorities
 
       # With custom chord tolerance
-      channel_tracks = Midifile.MapEvents.track_to_sonorities(sequence, 0, chord_tolerance: 10)
+      channel_tracks = Midifile.MapEvents.one_track_to_sonorities(sequence, 0, chord_tolerance: 10)
   """
-  @spec track_to_sonorities(Midifile.Sequence, integer(), keyword()) :: %{integer() => STrack}
-  def track_to_sonorities(sequence, track_number, opts \\ []) do
+  @spec one_track_to_sonorities(Midifile.Sequence, integer(), keyword()) :: %{integer() => STrack}
+  def one_track_to_sonorities(sequence, track_number, opts \\ []) do
     # Default options
     chord_tolerance = Keyword.get(opts, :chord_tolerance, 0)
     is_percussion = Keyword.get(opts, :is_percussion, false)
@@ -924,8 +924,8 @@ defmodule MapEvents do
       offsets = MapEvents.calculate_track_starting_offsets(sequence)
       # => %{0 => 0, 1 => 128, 2 => 256}
 
-      # Use with track_to_sonorities
-      track_1_sonorities = MapEvents.track_to_sonorities(sequence, 1, track_offset: offsets[1])
+      # Use with one_track_to_sonorities
+      track_1_sonorities = MapEvents.one_track_to_sonorities(sequence, 1, track_offset: offsets[1])
   """
   def calculate_track_starting_offsets(sequence) do
 

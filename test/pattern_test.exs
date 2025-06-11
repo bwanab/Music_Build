@@ -4,7 +4,7 @@ defmodule PatternTest do
 
   test "gather groups of notes into a map based on a pattern" do
     seq = Midifile.read("midi/quantized_blues_bass.mid")
-    channel_tracks = MapEvents.track_to_sonorities(seq, 0)
+    channel_tracks = MapEvents.one_track_to_sonorities(seq, 0)
     sonorities = channel_tracks[0].sonorities  # Get channel 0 sonorities
     assert length(sonorities) == 768
     pattern = [:I, :IV, :I, :I, :IV, :IV, :I, :I, :V, :IV, :I, :V]

@@ -38,8 +38,8 @@ First, we'll read the midi file with our bass lines and split them into individu
 ```elixir
 test_dir = Path.expand("~/src/music_build/test")
 seq = Midifile.read(Path.join(test_dir, "quantized_blues_bass.mid"))
-track = Enum.at(seq.tracks, 0)
-sonorities = MapEvents.track_to_sonorities(track)
+channel_tracks = MapEvents.one_track_to_sonorities(seq, 0)
+sonorities = channel_tracks[0].sonorities
 chunks = Enum.chunk_every(sonorities, 12*8)
 ```
 

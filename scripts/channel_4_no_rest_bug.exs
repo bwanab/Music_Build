@@ -24,7 +24,7 @@ min_start_time = Enum.map(channel_start_times, fn %{channel: _c, start_time: s} 
 IO.inspect(Enum.map(channel_start_times, fn %{channel: c, start_time: s} -> %{channel: c, n_quarter_notes: round((s - min_start_time) / tpqn)} end), label: "quarter_notes of rest at start")
 
 # now, we compute the sonorities
-strack_map = MapEvents.track_to_sonorities(seq, 0)
+strack_map = MapEvents.one_track_to_sonorities(seq, 0)
 
 # compute the number of quarter notes at the state based on sonorities.
 # Note that all channels except channel 4 start with a rest of 4 or more quarter notes:

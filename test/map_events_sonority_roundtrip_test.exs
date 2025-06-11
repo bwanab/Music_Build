@@ -12,7 +12,7 @@ defmodule Midifile.MapEventsSonorityRoundtripTest do
     sequence = Midifile.read("midi/test_sonorities.mid")
 
     # 2) Convert the only track to sonorities
-    original_channel_tracks = MapEvents.track_to_sonorities(sequence, 0)
+    original_channel_tracks = MapEvents.one_track_to_sonorities(sequence, 0)
     original_sonorities = original_channel_tracks[0].sonorities  # Get channel 0 sonorities
 
     # 3) Write those sonorities out as a test/temp.mid file
@@ -27,7 +27,7 @@ defmodule Midifile.MapEventsSonorityRoundtripTest do
 
     # 4) Read test/temp.mid in as a new sequence and convert its only track to sonorities
     new_sequence = Midifile.read("test/temp.mid")
-    new_channel_tracks = MapEvents.track_to_sonorities(new_sequence, 0)
+    new_channel_tracks = MapEvents.one_track_to_sonorities(new_sequence, 0)
     new_sonorities = new_channel_tracks[0].sonorities  # Get channel 0 sonorities
 
     # 5) The sonorities from step 2 should be identical to those from step 4
@@ -91,7 +91,7 @@ defmodule Midifile.MapEventsSonorityRoundtripTest do
     ]
     MusicBuild.LilyBuild.write([sonorities], "midi/round_trip_dotted.ly", midi: true, out_path: "./midi")
     seq = Midifile.Reader.read("midi/round_trip_dotted.midi")
-    derived_channel_tracks = MapEvents.track_to_sonorities(seq, 0, chord_tolerance: 10)
+    derived_channel_tracks = MapEvents.one_track_to_sonorities(seq, 0, chord_tolerance: 10)
     derived_sonorities = derived_channel_tracks[0].sonorities  # Get channel 0 sonorities
     assert length(sonorities) == length(derived_sonorities)
     Enum.map(Enum.zip(sonorities, derived_sonorities), fn {s1, s2} ->
@@ -130,7 +130,7 @@ defmodule Midifile.MapEventsSonorityRoundtripTest do
 
     # Read back and convert to sonorities
     new_sequence = Midifile.read("test/controller_temp.mid")
-    new_channel_tracks = MapEvents.track_to_sonorities(new_sequence, 0)
+    new_channel_tracks = MapEvents.one_track_to_sonorities(new_sequence, 0)
     new_sonorities = new_channel_tracks[0].sonorities
 
     # Filter out any automatic program/controller events that might be added

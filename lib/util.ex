@@ -113,7 +113,7 @@ defmodule MusicBuild.Util do
         by a given numer of semitones.
   """
   def bump_octave(seq, track_num) do
-    strack_map = MapEvents.track_to_sonorities(seq, track_num)
+    strack_map = MapEvents.one_track_to_sonorities(seq, track_num)
     Enum.map(strack_map[0].sonorities, fn s ->
       case Sonority.type(s) do
         :note -> Note.bump_octave(s, :up)

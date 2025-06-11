@@ -106,7 +106,7 @@ write_file([arpeggio_pattern], "repeated_arpeggio", :midi)
 sequence = Midifile.read("path/to/your/file.mid")
 
 # Convert MIDI events to musical sonorities  
-channel_tracks = MapEvents.track_to_sonorities(sequence, 0)
+channel_tracks = MapEvents.one_track_to_sonorities(sequence, 0)
 
 # Access sonorities for each channel
 channel_0_track = channel_tracks[0]
@@ -129,7 +129,7 @@ end)
 ```elixir
 # Read and process all tracks with synchronization
 sequence = Midifile.read("multi_track_file.mid")
-all_tracks = MapEvents.sequence_to_synchronized_sonorities(sequence)
+all_tracks = MapEvents.all_tracks_to_sonorities(sequence)
 
 # Access different instruments/channels
 piano_track = all_tracks[0]        # Channel 0
@@ -149,7 +149,7 @@ IO.puts("Instrument type: #{piano_track.track_type}")
 original_sequence = Midifile.read("input.mid")
 
 # Convert to sonorities
-channel_tracks = MapEvents.track_to_sonorities(original_sequence, 0)
+channel_tracks = MapEvents.one_track_to_sonorities(original_sequence, 0)
 
 # Process/modify sonorities (example: transpose up an octave)
 modified_tracks = Enum.map(channel_tracks, fn {channel, strack} ->
