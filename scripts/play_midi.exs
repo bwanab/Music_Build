@@ -1,6 +1,6 @@
 Mix.install([
   {:music_prims, github: "bwanab/music_prims"},
-  {:midifile, github: "bwanab/elixir-midifile", force: true},
+  {:midifile, github: "bwanab/elixir-midifile"},
   {:music_build, path: Path.expand("~/src/music_build")},
   {:better_weighted_random, "~> 0.1.0"}
 ])
