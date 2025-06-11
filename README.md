@@ -18,7 +18,7 @@ Add `music_build` to your list of dependencies in `mix.exs`:
 ```elixir
 def deps do
   [
-    {:music_build, "~> 0.1.0"}
+    {:music_build, github: "bwanab/Music_Build"}
   ]
 end
 ```

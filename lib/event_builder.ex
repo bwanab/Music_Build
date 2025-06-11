@@ -78,7 +78,7 @@ defmodule MusicBuild.EventBuilder do
     lsb = pitch_bend.value |> Bitwise.band(0x7F)
     msb = pitch_bend.value |> Bitwise.bsr(7) |> Bitwise.band(0x7F)
     [
-      %Event{symbol: :pitch_bend, delta_time: 0, bytes: [224 + channel, lsb, msb]}
+      %Event{symbol: :pitch_bend, delta_time: 0, bytes: [224 + channel, <<lsb, msb>>]}
     ]
   end
 

@@ -32,6 +32,44 @@ defmodule MapEvents do
   alias Midifile.Event
   alias Midifile.Defaults
 
+    @doc """
+  Processes all tracks in a MIDI sequence with proper synchronization.
+
+  This function handles multi-track MIDI files by calculating the starting offset
+  for each track and ensuring all tracks are properly synchronized to the same
+  global timeline. It addresses the issue where different tracks may start at
+  different times in the original MIDI file.
+
+  ## Parameters
+    * `sequence` - A `Midifile.Sequence` struct containing multiple tracks
+    * `opts` - Options map passed to track_to_sonorities for each track
+
+  ## Returns
+    * A map containing all channels from all tracks, with proper timing synchronization
+
+  ## Examples
+
+      # Process a multi-track MIDI file with synchronization
+      all_tracks = MapEvents.sequence_to_synchronized_sonorities(sequence)
+
+      # Access tracks from different original MIDI tracks
+      track_0_channels = Map.take(all_tracks, [0, 1, 2])  # Channels from track 0
+      track_1_channels = Map.take(all_tracks, [3, 4, 5])  # Channels from track 1
+  """
+  def sequence_to_synchronized_sonorities(sequence, opts \\ []) do
+    track_offsets = calculate_track_starting_offsets(sequence)
+
+    sequence.tracks
+    |> Enum.with_index()
+    |> Enum.reduce(%{}, fn {_track, index}, acc ->
+      offset_ticks = Map.get(track_offsets, index, 0)
+      offset_opts = Keyword.put(opts, :track_offset, offset_ticks)
+
+      track_sonorities = track_to_sonorities(sequence, index, offset_opts)
+      Map.merge(acc, track_sonorities)
+    end)
+  end
+
   @doc """
   Maps a track's MIDI events to separate channel tracks, each containing a sequence of Sonority types.
 
@@ -81,23 +119,13 @@ defmodule MapEvents do
     end
 
     # First, calculate absolute start and end times for all notes, controllers, and pitch_bend events
-    sonority_events = identify_sonority_events(track.events)
-    note_events = sonority_events.notes
-    controller_events = sonority_events.controllers
-    pitch_bend_events = sonority_events.pitch_bends
+    events = identify_sonority_events(track.events)
 
     # Check if this track contains percussion (channel 9, which is channel 10 in 1-based numbering)
-    has_percussion = Enum.any?(note_events, fn note -> note.channel == 9 end)
+    has_percussion = Enum.any?(events.note_events, fn note -> note.channel == 9 end)
 
     # Determine if we should use percussion processing
     use_percussion_processing = has_percussion or is_percussion
-
-    # Create events map for processing
-    events = %{
-      note_events: note_events,
-      controller_events: controller_events,
-      pitch_bend_events: pitch_bend_events
-    }
 
     if use_percussion_processing do
       # Process percussion tracks by splitting on pitch rather than channel
@@ -132,7 +160,7 @@ defmodule MapEvents do
     Enum.into(notes_by_channel, %{}, fn {channel, channel_notes} ->
       channel_controllers = Map.get(controllers_by_channel, channel, [])
       channel_pitch_bends = Map.get(pitch_bends_by_channel, channel, [])
-      
+
       channel_events = %{
         note_events: channel_notes,
         controller_events: channel_controllers,
@@ -142,7 +170,7 @@ defmodule MapEvents do
 
       # Get the delay for this channel based on note-on events
       channel_delay_quarter_notes = Map.get(channel_delays, channel, 0)
-      
+
       # Add track offset to channel delay for multi-track synchronization
       track_offset_quarter_notes = track_offset / tpqn
       total_delay_quarter_notes = channel_delay_quarter_notes + track_offset_quarter_notes
@@ -176,7 +204,7 @@ defmodule MapEvents do
     note_events = Map.get(events, :note_events, [])
     controller_events = Map.get(events, :controller_events, [])
     pitch_bend_events = Map.get(events, :pitch_bend_events, [])
-    
+
     # Load percussion instrument mapping
     percussion_map = read_percussion_mapping()
 
@@ -236,7 +264,7 @@ defmodule MapEvents do
 
       # For percussion, use the delay of channel 9 (if any)
       channel_delay_quarter_notes = Map.get(channel_delays, 9, 0)
-      
+
       # Add track offset to channel delay for multi-track synchronization
       track_offset_quarter_notes = track_offset / tpqn
       total_delay_quarter_notes = channel_delay_quarter_notes + track_offset_quarter_notes
@@ -465,9 +493,9 @@ defmodule MapEvents do
     all_notes = Enum.concat(notes, unmatched_notes)
 
     %{
-      notes: all_notes,
-      controllers: Enum.reverse(controllers),
-      pitch_bends: Enum.reverse(pitch_bends)
+      note_events: all_notes,
+      controller_events: Enum.reverse(controllers),
+      pitch_bend_events: Enum.reverse(pitch_bends)
     }
   end
 
@@ -612,7 +640,7 @@ defmodule MapEvents do
     note_sonorities_with_times = Map.get(sonorities_map, :note_sonorities_with_times, [])
     controller_sonorities = Map.get(sonorities_map, :controller_sonorities, [])
     pitch_bend_sonorities = Map.get(sonorities_map, :pitch_bend_sonorities, [])
-    
+
     controller_events = Map.get(events_map, :controller_events, [])
     pitch_bend_events = Map.get(events_map, :pitch_bend_events, [])
 
@@ -900,22 +928,24 @@ defmodule MapEvents do
       track_1_sonorities = MapEvents.track_to_sonorities(sequence, 1, track_offset: offsets[1])
   """
   def calculate_track_starting_offsets(sequence) do
-    sequence.tracks
-    |> Enum.with_index()
-    |> Enum.map(fn {track, index} ->
-      first_significant_delta = find_first_significant_event_delta(track.events)
-      {index, first_significant_delta}
+
+    fsd = Enum.map(sequence.tracks, fn track ->
+      find_first_significant_event_delta(track.events)
     end)
+    min_offset = Enum.min(fsd)
+    Enum.map(fsd, fn fs -> fs - min_offset end)
+    |> Enum.with_index()
+    |> Enum.map(fn {fsd, idx} -> {idx, fsd} end)
     |> Map.new()
   end
 
   @doc false
   # Finds the absolute time when musical content first starts in a track
   # This calculates the cumulative time to the first note-on event
-  defp find_first_significant_event_delta(events) do
+  def find_first_significant_event_delta(events) do
     # Calculate absolute times and find first note-on event
     events_with_times = add_absolute_times(events)
-    
+
     # Find the first note-on event (actual musical content)
     case Enum.find(events_with_times, fn {event, _time} -> event.symbol == :on end) do
       {_event, abs_time} -> abs_time
@@ -923,41 +953,4 @@ defmodule MapEvents do
     end
   end
 
-  @doc """
-  Processes all tracks in a MIDI sequence with proper synchronization.
-
-  This function handles multi-track MIDI files by calculating the starting offset
-  for each track and ensuring all tracks are properly synchronized to the same
-  global timeline. It addresses the issue where different tracks may start at
-  different times in the original MIDI file.
-
-  ## Parameters
-    * `sequence` - A `Midifile.Sequence` struct containing multiple tracks
-    * `opts` - Options map passed to track_to_sonorities for each track
-
-  ## Returns
-    * A map containing all channels from all tracks, with proper timing synchronization
-
-  ## Examples
-
-      # Process a multi-track MIDI file with synchronization
-      all_tracks = MapEvents.sequence_to_synchronized_sonorities(sequence)
-
-      # Access tracks from different original MIDI tracks
-      track_0_channels = Map.take(all_tracks, [0, 1, 2])  # Channels from track 0
-      track_1_channels = Map.take(all_tracks, [3, 4, 5])  # Channels from track 1
-  """
-  def sequence_to_synchronized_sonorities(sequence, opts \\ []) do
-    track_offsets = calculate_track_starting_offsets(sequence)
-
-    sequence.tracks
-    |> Enum.with_index()
-    |> Enum.reduce(%{}, fn {_track, index}, acc ->
-      offset_ticks = Map.get(track_offsets, index, 0)
-      offset_opts = Keyword.put(opts, :track_offset, offset_ticks)
-
-      track_sonorities = track_to_sonorities(sequence, index, offset_opts)
-      Map.merge(acc, track_sonorities)
-    end)
-  end
 end
