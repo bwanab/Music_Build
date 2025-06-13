@@ -10,7 +10,7 @@ defmodule MusicBuild.Util do
     bpm = Map.get(strack_map, Enum.at(Map.keys(strack_map), 0)).bpm
     [tracks, names, program_numbers] = Map.values(strack_map)
       |> Enum.map(fn %STrack{name: name, sonorities: sonorities, program_number: program_number} ->
-        use_name = if is_nil(name), do: "Unnamed", else: name
+        use_name = if is_nil(name) or is_number(name), do: "Unnamed", else: name
         {sonorities, use_name, program_number}
       end)
       |> unzip_n()
@@ -82,7 +82,7 @@ defmodule MusicBuild.Util do
     if length(name_events) > 0 do
       Enum.at(name_events, 0).bytes
     else
-      ""
+      "Unnamed"
     end
   end
 

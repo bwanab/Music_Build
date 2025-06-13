@@ -113,9 +113,11 @@ defmodule MapEvents do
 
     # Get the specified track
     track = Enum.at(sequence.tracks, track_number)
-    track_name = MusicBuild.Util.get_track_name(track)
-    track_name = if String.length(track_name) == 0 do
+    maybe_track_name = MusicBuild.Util.get_track_name(track)
+    track_name = if String.length(maybe_track_name) == 0 do
       Keyword.get(opts, :track_name, "UnNamed")
+    else
+      maybe_track_name
     end
 
     # First, calculate absolute start and end times for all notes, controllers, and pitch_bend events
