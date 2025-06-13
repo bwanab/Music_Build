@@ -113,7 +113,7 @@ defmodule MusicBuild.Examples.MidiFromScratch do
   @spec change_dur_at([Sonority.t()], integer(), any()) :: {[Sonority.t()], float()}
   def change_dur_at(ms, pos, duration) do
     note = Enum.at(ms, pos)
-    ms = List.replace_at(ms, pos, Note.copy(note, duration: duration))
+    ms = List.replace_at(ms, pos, Sonority.copy(note, duration: duration))
     total_dur = Enum.reduce(ms, 0,  &(&1.duration + &2))
     {ms, total_dur}
   end

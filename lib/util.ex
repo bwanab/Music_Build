@@ -37,7 +37,7 @@ defmodule MusicBuild.Util do
     Midifile.write(sfs, outpath)
   end
 
-  @spec write_file([Sonority.t()], binary(), atom(), keyword()) :: :ok
+  #@spec write_file([Sonority.t()], binary(), atom(), keyword()) :: :ok
   def write_file(strack_map, name, out_type \\ :midi, opts \\ [])
   def write_file(strack_map, name, out_type, opts) when is_map(strack_map) do
     case out_type do

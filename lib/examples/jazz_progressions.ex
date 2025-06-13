@@ -15,7 +15,7 @@ defmodule MusicBuild.Examples.JazzProgressions do
 
     last = Enum.at(chords, 0)
     all_chords = if add_last do
-      chords ++ [Chord.copy(last, inversion: 2, octave: Chord.octave(last) - 1) ]
+      chords ++ [Sonority.copy(last, inversion: 2, octave: Chord.octave(last) - 1) ]
     else
       chords
     end
@@ -53,7 +53,7 @@ defmodule MusicBuild.Examples.JazzProgressions do
         #
         # last_note = Rest.new(8)
 
-        [Arpeggio.new(Chord.copy(c, octave: Chord.octave(c)-2), pattern, 0.5)]
+        [Arpeggio.new(Sonority.copy(c, octave: Chord.octave(c)-2), pattern, 0.5)]
 #         ++ [last_note]
       end)
 
