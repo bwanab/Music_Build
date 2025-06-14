@@ -14,11 +14,11 @@ defmodule MusicBuild.Examples.ArpeggioProgressions do
   end
 
   # @spec do_arpeggio_progression([atom()], atom(), boolean(), String.t(), atom()) :: :ok
-  def do_arpeggio_progression(progression, key \\ :C, name \\ "arpeggio_progression", repeats, out_type \\ :lily) do
+  def do_arpeggio_progression(progression, key \\ :C, repeats, assignments \\ %{chord: {0, 0}, arpeggio: {0,0}, bass: {0,0}}) do
 
-    chord_channel = 0
-    arpeggio_channel = 1
-    bass_channel = 2
+    {chord_channel, chord_instrument} = assignments[:chord]
+    {arpeggio_channel, arpeggio_instrument} = assignments[:arpeggio]
+    {bass_channel, bass_instrument} = assignments[:bass]
     chords = build_chords(progression, key, 4, 2, chord_channel)
 
     all_chords = List.duplicate(chords, repeats)
@@ -60,19 +60,14 @@ defmodule MusicBuild.Examples.ArpeggioProgressions do
                     |> List.duplicate(repeats)
                     |> List.flatten()
 
-
-
-    stract_map = %{
-      0 => STrack.new("piano chords", all_chords, 960, :instrument, 0, 100),
-      1 => STrack.new("arpeggios", all_arpeggios, 960, :instrument, 73, 100),
-      2 => STrack.new("bass", bass_arpeggios, 960, :instrument, 33, 100)
-    }
-    write_file(stract_map, name, out_type)
   end
 
   def pachelbels_canon(out_type \\ :lily) do
     #do_arpeggio_progression([:I, :V, :vi, :iii, :IV, :I, :IV, :V],  :C, "pachelbel", 10, out_type)
-    do_arpeggio_progression([:I, :V, :vi, :iii, :IV, :I, :IV, :V],  :C, "midi/pachelbel.mid", 10, out_type)
+    assignments = %{chord: {0, 0}, arpeggio: {1,73}, bass: {2,32}}
+    do_arpeggio_progression([:I, :V, :vi, :iii, :IV, :I, :IV, :V],  :C, 10, assignments)
+    |> write_file("midi/pachelbel.mid", out_type)
+
   end
 
 end
