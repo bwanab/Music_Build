@@ -60,6 +60,11 @@ defmodule MusicBuild.Examples.ArpeggioProgressions do
                     |> List.duplicate(repeats)
                     |> List.flatten()
 
+  %{
+     0 => STrack.new("piano chords", all_chords, 960, :instrument, chord_instrument, 100),
+     1 => STrack.new("arpeggios", all_arpeggios, 960, :instrument, arpeggio_instrument, 100),
+     2 => STrack.new("bass", bass_arpeggios, 960, :instrument, bass_instrument, 100)
+   }
   end
 
   def pachelbels_canon(out_type \\ :lily) do
