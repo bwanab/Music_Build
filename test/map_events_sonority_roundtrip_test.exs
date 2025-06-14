@@ -81,13 +81,13 @@ defmodule Midifile.MapEventsSonorityRoundtripTest do
 
   test "sonorities round trip with lilypond and dotted note durations" do
     sonorities = [
-      Note.new(:C, 4, 1),
+      Note.new(:C, octave: 4, duration: 1),
       Rest.new(1),
-      Chord.new(:A, :major, 4, 1),
-      Note.new(:E, 4, 1),
-      Note.new(:F, 4, 1),
-      Note.new(:G, 4, 1.5),     # dotted quarternote
-      Note.new(:Gb, 4, 3)     # dotted halfnote
+      Chord.new(:A, :major, octave: 4, duration: 1),
+      Note.new(:E, octave: 4, duration: 1),
+      Note.new(:F, octave: 4, duration: 1),
+      Note.new(:G, octave: 4, duration: 1.5),     # dotted quarternote
+      Note.new(:Gb, octave: 4, duration: 3)     # dotted halfnote
     ]
     MusicBuild.LilyBuild.write([sonorities], "midi/round_trip_dotted.ly", midi: true, out_path: "./midi")
     seq = Midifile.Reader.read("midi/round_trip_dotted.midi")
@@ -109,13 +109,13 @@ defmodule Midifile.MapEventsSonorityRoundtripTest do
   test "controller sonorities round trip through MIDI conversion" do
     # Create sonorities including controllers
     original_sonorities = [
-      Note.new(:C, 4, 1, 80, 0),
+      Note.new(:C, octave: 4, duration: 1, velocity: 80, channel: 0),
       Controller.new(7, 100, 0),   # Volume controller
-      Note.new(:D, 4, 1, 80, 0),
+      Note.new(:D, octave: 4, duration: 1, velocity: 80, channel: 0),
       Controller.new(10, 64, 0),   # Pan controller
       Rest.new(0.5, 0),
       Controller.new(1, 32, 0),    # Modulation controller
-      Note.new(:E, 4, 1, 80, 0)
+      Note.new(:E, octave: 4, duration: 1, velocity: 80, channel: 0)
     ]
 
     # Convert to MIDI track

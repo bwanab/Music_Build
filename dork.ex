@@ -69,7 +69,7 @@ defmodule MusicBuild.Examples.ArpeggioProgressions do
 
   def pachelbels_canon(out_type \\ :lily) do
     #do_arpeggio_progression([:I, :V, :vi, :iii, :IV, :I, :IV, :V],  :C, "pachelbel", 10, out_type)
-    assignments = %{chord: {0, 19}, arpeggio: {1,73}, bass: {2,32}}
+    assignments = %{chord: {0, 0}, arpeggio: {1,73}, bass: {2,32}}
     do_arpeggio_progression([:I, :V, :vi, :iii, :IV, :I, :IV, :V],  :C, 10, assignments)
     |> write_file("midi/pachelbel.mid", out_type)
 

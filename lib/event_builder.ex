@@ -83,10 +83,10 @@ defmodule MusicBuild.EventBuilder do
   end
 
   defp first_chord_note(%Note{note: n, octave: o, velocity: v, channel: channel}, duration, tpqn) do
-    new(:note, Note.new(n, o, duration, v, channel), tpqn)
+    new(:note, Note.new(n, octave: o, duration: duration, velocity: v, channel: channel), tpqn)
   end
 
   defp other_chord_notes(%Note{note: n, octave: o, velocity: velocity, channel: channel}, tpqn) do
-    new(:note, Note.new(n, o, 0, velocity, channel), tpqn)
+    new(:note, Note.new(n, octave: o, duration: 0, velocity: velocity, channel: channel), tpqn)
   end
 end

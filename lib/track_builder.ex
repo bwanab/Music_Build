@@ -32,14 +32,14 @@ defmodule MusicBuild.TrackBuilder do
 
       # Create a track with a C major scale
       notes = [
-        Note.new({:C, 4}, duration: 1.0),
-        Note.new({:D, 4}, duration: 1.0),
-        Note.new({:E, 4}, duration: 1.0),
-        Note.new({:F, 4}, duration: 1.0),
-        Note.new({:G, 4}, duration: 1.0),
-        Note.new({:A, 4}, duration: 1.0),
-        Note.new({:B, 4}, duration: 1.0),
-        Note.new({:C, 5}, duration: 1.0)
+        Note.new(:C, octave: 4, duration: 1.0),
+        Note.new(:D, octave: 4, duration: 1.0),
+        Note.new(:E, octave: 4, duration: 1.0),
+        Note.new(:F, octave: 4, duration: 1.0),
+        Note.new(:G, octave: 4, duration: 1.0),
+        Note.new(:A, octave: 4, duration: 1.0),
+        Note.new(:B, octave: 4, duration: 1.0),
+        Note.new(:C, octave: 5, duration: 1.0)
       ]
 
       track = MusicBuild.TrackBuilder.new("C Major Scale", notes, 960)

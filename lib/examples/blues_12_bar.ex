@@ -8,7 +8,7 @@ defmodule MusicBuild.Examples.Blues12Bar do
   def play_blues(key) do
     chords = Enum.map(@pattern, fn roman_numeral ->
       # Create chord using the new from_roman_numeral function
-      Chord.from_roman_numeral(roman_numeral, key, 4, 4)
+      Chord.from_roman_numeral(roman_numeral, key, octave: 4, duration: 4)
     end)
     Util.write_midi_file([chords], "midi/blues_12_bar_chords.mid")
   end

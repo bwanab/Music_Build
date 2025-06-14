@@ -25,19 +25,19 @@ defmodule MusicBuild.Examples.MidiFromScratch do
   @spec midi_file_mixed_chords_notes_rests(atom()) :: :ok
   def midi_file_mixed_chords_notes_rests(out_type \\ :midi) do
     sonorities = [
-      Note.new(:C, 4, 1),
+      Note.new(:C, octave: 4, duration: 1),
       Rest.new(1),
-      Chord.new(:A, :major, 4, 1),
-      Note.new(:E, 4, 1),
-      Note.new(:F, 4, 1),
-      Note.new(:G, 4, 1.5),     # dotted quarternote
-      Note.new(:Gb, 4, 3)     # dotted halfnote
+      Chord.new(:A, :major, octave: 4, duration: 1),
+      Note.new(:E, octave: 4, duration: 1),
+      Note.new(:F, octave: 4, duration: 1),
+      Note.new(:G, octave: 4, duration: 1.5),     # dotted quarternote
+      Note.new(:Gb, octave: 4, duration: 3)     # dotted halfnote
     ]
     write_file([sonorities], "with chords", out_type)
   end
 
   def midi_file_from_arpeggio(out_type \\ :midi) do
-    arpeggio = Arpeggio.new(Chord.new(:C, :major, 4, 4), :up, 1)
+    arpeggio = Arpeggio.new(Chord.new(:C, :major, octave: 4, duration: 4), :up, 1)
     write_file([Sonority.to_notes(arpeggio)], "arpeggio", out_type)
   end
 
@@ -45,10 +45,10 @@ defmodule MusicBuild.Examples.MidiFromScratch do
   # it is actually somewhat musical.
   def midi_file_from_arpeggio_repeated(out_type \\ :midi) do
     dur = 0.5
-    arpeggio1 = Arpeggio.repeat(Arpeggio.new(Chord.new(:C, :minor, 4, dur), :up, dur), 4)
-    arpeggio2 = Arpeggio.repeat(Arpeggio.new(Chord.new(:F, :minor, 4, dur), :up, dur), 4)
-    arpeggio3 = Arpeggio.repeat(Arpeggio.new(Chord.new(:Ab, :major, 3, dur), :up, dur), 4)
-    arpeggio4 = Arpeggio.repeat(Arpeggio.new(Chord.new(:G, :minor, 3, dur), :up, dur), 4)
+    arpeggio1 = Arpeggio.repeat(Arpeggio.new(Chord.new(:C, :minor, octave: 4, duration: dur), :up, dur), 4)
+    arpeggio2 = Arpeggio.repeat(Arpeggio.new(Chord.new(:F, :minor, octave: 4, duration: dur), :up, dur), 4)
+    arpeggio3 = Arpeggio.repeat(Arpeggio.new(Chord.new(:Ab, :major, octave: 3, duration: dur), :up, dur), 4)
+    arpeggio4 = Arpeggio.repeat(Arpeggio.new(Chord.new(:G, :minor, octave: 3, duration: dur), :up, dur), 4)
     sonorities = [arpeggio1, arpeggio2, arpeggio3, arpeggio4]
     sonorities = List.duplicate(sonorities, 4) |> List.flatten()
     write_file([sonorities], "multiple_arpeggios_repeated", out_type)
@@ -65,7 +65,7 @@ defmodule MusicBuild.Examples.MidiFromScratch do
     # Use the enhanced Chord API to create chords directly from Roman numerals
     chords = Enum.map(roman_numerals, fn roman_numeral ->
       # Create chord using the new from_roman_numeral function
-      Chord.from_roman_numeral(roman_numeral, :C, 4, dur)
+      Chord.from_roman_numeral(roman_numeral, :C, octave: 4, duration: dur)
     end)
 
     write_file([chords], "random_progression", out_type)
@@ -80,14 +80,14 @@ defmodule MusicBuild.Examples.MidiFromScratch do
     # Use the enhanced Chord API to create chords directly from Roman numerals
     track1 = Enum.map(roman_numerals, fn roman_numeral ->
       # Create chord using the new from_roman_numeral function
-      Chord.from_roman_numeral(roman_numeral, :C, 4, 1)
+      Chord.from_roman_numeral(roman_numeral, :C, octave: 4, duration: 1)
     end)
 
     # here we take every 4th roman numeral and get the root
     # note of each chord as our bass line
     root_numerals = Enum.take_every(roman_numerals, 4)
     chords = Enum.map(root_numerals, fn roman_numeral ->
-        Chord.from_roman_numeral(roman_numeral, :C, 2, 4)
+        Chord.from_roman_numeral(roman_numeral, :C, octave: 2, duration: 4)
     end)
     track2 = Enum.map(chords, fn c -> Enum.at(Sonority.to_notes(c), 0) end)
 

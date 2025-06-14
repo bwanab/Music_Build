@@ -10,7 +10,7 @@ defmodule MusicBuild.Examples.JazzProgressions do
     # Use the enhanced Chord API to create chords directly from Roman numerals
     chords = Enum.map(progression, fn roman_numeral ->
       # Create chord using the new from_roman_numeral function
-      Chord.from_roman_numeral(roman_numeral, key, 4, 4)
+      Chord.from_roman_numeral(roman_numeral, key, octave: 4, duration: 4)
     end)
 
     last = Enum.at(chords, 0)

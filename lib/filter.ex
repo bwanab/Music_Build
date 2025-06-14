@@ -44,7 +44,7 @@ defmodule Filter do
         # Try the enhanced approach with Note structs
             try do
               # Try to call with a placeholder Note struct to see if it works with Notes
-              test_note = Note.new({:C, 4}, duration: 1, velocity: 100)
+              test_note = Note.new(:C, octave: 4, duration: 1, velocity: 100)
               note_predicate.(test_note)
               # If we get here, the function accepts Note structs, use the enhanced approach
               {processed_events, note_data} = mark_matching_notes(track.events, note_predicate, tpqn)

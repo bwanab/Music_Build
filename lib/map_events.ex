@@ -682,7 +682,7 @@ defmodule MapEvents do
       {root, quality, octave} = detect_chord_from_notes(notes)
 
       # Create the basic chord
-      basic_chord = Chord.new(root, quality, octave, duration, 0, velocity, channel)
+      basic_chord = Chord.new(root, quality, octave: octave, duration: duration, inversion: 0, velocity: velocity, channel: channel)
 
       # Check if any notes aren't part of the basic chord
       # If found, add them as additions
