@@ -8,12 +8,7 @@ defmodule MusicBuild.Util do
   def write_midi_file(strack_map, outpath, opts) when is_map(strack_map) do
 
     bpm = Map.get(strack_map, Enum.at(Map.keys(strack_map), 0)).bpm
-    [tracks, names, program_numbers] = Map.values(strack_map)
-      |> Enum.map(fn %STrack{name: name, sonorities: sonorities, program_number: program_number} ->
-        use_name = if is_nil(name) or is_number(name), do: "Unnamed", else: name
-        {sonorities, use_name, program_number}
-      end)
-      |> unzip_n()
+    [tracks, names, program_numbers] = get_tracks_names_prog_nums(strack_map)
 
     opts = opts
           |> Keyword.put(:inst_names, names)
@@ -35,6 +30,15 @@ defmodule MusicBuild.Util do
     end)
     sfs = Sequence.new(name, bpm, tracks, tpqn)
     Midifile.write(sfs, outpath)
+  end
+
+  def get_tracks_names_prog_nums(strack_map) do
+     Map.values(strack_map)
+       |> Enum.map(fn %STrack{name: name, sonorities: sonorities, program_number: program_number} ->
+        use_name = if is_nil(name) or is_number(name), do: "Unnamed", else: name
+        {sonorities, use_name, program_number}
+      end)
+      |> unzip_n()
   end
 
   #@spec write_file([Sonority.t()], binary(), atom(), keyword()) :: :ok
