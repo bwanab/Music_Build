@@ -6,9 +6,9 @@ defmodule MusicBuildTest do
   describe "TrackBuilder" do
     test "creates a track from a list of notes" do
       notes = [
-        Note.new(:C, 4, 1),
-        Note.new(:D, 4, 1),
-        Note.new(:E, 4, 1)
+        Note.new(:C, octave: 4, duration: 1),
+        Note.new(:D, octave: 4, duration: 1),
+        Note.new(:E, octave: 4, duration: 1)
       ]
       track = MusicBuild.TrackBuilder.new("Test Track", notes)
 
@@ -20,8 +20,8 @@ defmodule MusicBuildTest do
 
     test "creates a track from a list of chords" do
       chords = [
-        Chord.new(:C, :major, 4, 1.0),
-        Chord.new(:G, :major, 4, 1.0)
+        Chord.new(:C, :major, octave: 4, duration: 1.0),
+        Chord.new(:G, :major, octave: 4, duration: 1.0)
       ]
       track = MusicBuild.TrackBuilder.new("Chord Track", chords)
 
@@ -32,7 +32,7 @@ defmodule MusicBuildTest do
     end
 
     test "creates a track from a list of arpeggios" do
-      chord = Chord.new(:C, :major, 4, 1.0)
+      chord = Chord.new(:C, :major, octave: 4, duration: 1.0)
       arpeggios = [
         Arpeggio.new(chord, :up, 1.0),
         Arpeggio.new(chord, :down, 1.0)
@@ -48,7 +48,7 @@ defmodule MusicBuildTest do
 
   describe "EventBuilder" do
     test "creates events from a note" do
-      note = Note.new(:C, 4, 1)
+      note = Note.new(:C, octave: 4, duration: 1)
       events = MusicBuild.EventBuilder.new(:note, note)
 
       assert length(events) == 2
@@ -65,7 +65,7 @@ defmodule MusicBuildTest do
     end
 
     test "creates events from a chord" do
-      chord = Chord.new(:C, :major, 4, 1.0)
+      chord = Chord.new(:C, :major, octave: 4, duration: 1.0)
       events = MusicBuild.EventBuilder.new(:chord, chord)
 
       assert length(events) == 6  # 3 notes * 2 events each
@@ -76,7 +76,7 @@ defmodule MusicBuildTest do
     end
 
     test "creates events from an arpeggio" do
-      chord = Chord.new(:C, :major, 4, 1.0)
+      chord = Chord.new(:C, :major, octave: 4, duration: 1.0)
       arpeggio = Arpeggio.new(chord, :up, 1.0)
       events = MusicBuild.EventBuilder.new(:arpeggio, arpeggio)
 
@@ -102,27 +102,74 @@ defmodule MusicBuildTest do
   describe "TrackBuilder with Controllers" do
     test "creates a track with mixed sonorities including controllers" do
       sonorities = [
-        Note.new(:C, 4, 1),
+        Note.new(:C, octave: 4, duration: 1),
         Controller.new(7, 100, 0),  # Volume change
-        Note.new(:D, 4, 1),
+        Note.new(:D, octave: 4, duration: 1),
         Controller.new(10, 64, 0),  # Pan center
-        Note.new(:E, 4, 1)
+        Note.new(:E, octave: 4, duration: 1)
       ]
       track = MusicBuild.TrackBuilder.new("Mixed Track", sonorities)
 
       assert track.name == "Mixed Track"
       assert length(track.events) > 0
-      
+
       # Check that controller events are present
       controller_events = Enum.filter(track.events, &(&1.symbol == :controller))
       assert length(controller_events) >= 2  # At least our 2 controller sonorities (plus potential percussion volume)
-      
+
       # Verify the controller events have correct structure
-      volume_event = Enum.find(controller_events, fn event -> 
+      volume_event = Enum.find(controller_events, fn event ->
         event.bytes |> Enum.at(1) == 7  # Controller 7 (volume)
       end)
       assert volume_event != nil
       assert volume_event.bytes == [176, 7, 100]  # Channel 0, controller 7, value 100
+    end
+  end
+
+  describe "Example arpeggio pattern" do
+    test "gets arpeggio test data" do
+      data = MusicBuild.Examples.ArpeggioProgressions.do_arpeggio_progression([:I, :vi, :iii],  :C, 1)
+            |> Map.values
+            |> Enum.flat_map(fn stm -> stm.sonorities end)
+            |> Enum.flat_map(fn s -> Sonority.to_notes(s) end)
+      assert data == [
+        %Note{note: :C, octave: 4, duration: 2, velocity: 100, channel: 0},
+        %Note{note: :E, octave: 4, duration: 2, velocity: 100, channel: 0},
+        %Note{note: :G, octave: 4, duration: 2, velocity: 100, channel: 0},
+        %Note{note: :C, octave: 5, duration: 2, velocity: 100, channel: 0},
+        %Note{note: :E, octave: 5, duration: 2, velocity: 100, channel: 0},
+        %Note{note: :G, octave: 5, duration: 2, velocity: 100, channel: 0},
+        %Note{note: :A, octave: 4, duration: 2, velocity: 100, channel: 0},
+        %Note{note: :C, octave: 5, duration: 2, velocity: 100, channel: 0},
+        %Note{note: :E, octave: 5, duration: 2, velocity: 100, channel: 0},
+        %Note{note: :A, octave: 5, duration: 2, velocity: 100, channel: 0},
+        %Note{note: :C, octave: 6, duration: 2, velocity: 100, channel: 0},
+        %Note{note: :E, octave: 6, duration: 2, velocity: 100, channel: 0},
+        %Note{note: :E, octave: 4, duration: 2, velocity: 100, channel: 0},
+        %Note{note: :G, octave: 4, duration: 2, velocity: 100, channel: 0},
+        %Note{note: :B, octave: 4, duration: 2, velocity: 100, channel: 0},
+        %Note{note: :E, octave: 5, duration: 2, velocity: 100, channel: 0},
+        %Note{note: :G, octave: 5, duration: 2, velocity: 100, channel: 0},
+        %Note{note: :B, octave: 5, duration: 2, velocity: 100, channel: 0},
+        %Note{note: :C, octave: 5, duration: 0.5, velocity: 100, channel: 0},
+        %Note{note: :C, octave: 4, duration: 0.5, velocity: 100, channel: 0},
+        %Note{note: :E, octave: 4, duration: 0.5, velocity: 100, channel: 0},
+        %Note{note: :G, octave: 4, duration: 0.5, velocity: 100, channel: 0},
+        %Note{note: :A, octave: 4, duration: 0.5, velocity: 100, channel: 0},
+        %Note{note: :C, octave: 5, duration: 0.5, velocity: 100, channel: 0},
+        %Note{note: :A, octave: 5, duration: 0.5, velocity: 100, channel: 0},
+        %Note{note: :E, octave: 5, duration: 0.5, velocity: 100, channel: 0},
+        %Note{note: :G, octave: 4, duration: 0.5, velocity: 100, channel: 0},
+        %Note{note: :B, octave: 4, duration: 0.5, velocity: 100, channel: 0},
+        %Note{note: :E, octave: 5, duration: 0.5, velocity: 100, channel: 0},
+        %Note{note: :G, octave: 4, duration: 0.5, velocity: 100, channel: 0},
+        %Note{note: :C, octave: 2, duration: 1, velocity: 100, channel: 0},
+        %Note{note: :C, octave: 3, duration: 1, velocity: 100, channel: 0},
+        %Note{note: :A, octave: 2, duration: 1, velocity: 100, channel: 0},
+        %Note{note: :C, octave: 3, duration: 1, velocity: 100, channel: 0},
+        %Note{note: :E, octave: 2, duration: 1, velocity: 100, channel: 0},
+        %Note{note: :B, octave: 2, duration: 1, velocity: 100, channel: 0}
+      ]
     end
   end
 end
