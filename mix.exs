@@ -30,8 +30,8 @@ defmodule MusicBuild.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:music_prims, path: "../music_prims", force: true},
-      #{:music_prims, github: "bwanab/music_prims"},
+      #{:music_prims, path: "../music_prims", force: true},
+      {:music_prims, github: "bwanab/music_prims"},
       {:midifile, github: "bwanab/elixir-midifile"},
       {:better_weighted_random, "~> 0.1"},
       {:csv, "~> 3.2"}
