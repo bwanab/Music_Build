@@ -21,7 +21,10 @@ defmodule MusicBuild.Examples.ArpeggioProgressions do
     {bass_channel, bass_instrument} = assignments[:bass]
     chords = build_chords(progression, key, 4, 2, chord_channel)
 
-    all_chords = List.duplicate(chords, repeats)
+    #
+    # here's an example of putting a volume control into the mix of sonorities.
+    #
+    all_chords = [Controller.new(7, 70, 0)] ++ List.duplicate(chords, repeats)
                 |> List.flatten()
 
     patterns = [
