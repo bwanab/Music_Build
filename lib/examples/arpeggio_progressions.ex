@@ -3,10 +3,10 @@ defmodule MusicBuild.Examples.ArpeggioProgressions do
   import MusicBuild.Util
 
 
-  def build_chords(progression, key, octave, duration) do
+  def build_chords(progression, key, octave, duration, channel) do
     Enum.map(progression, fn roman_numeral ->
       # Create chord using the new from_roman_numeral function
-      c = Chord.from_roman_numeral(roman_numeral, key, octave, duration)
+      c = Chord.from_roman_numeral(roman_numeral, key, octave, duration, 0, channel)
       notes = Sonority.to_notes(c)
       all_notes = notes ++ Note.bump_octave(notes, :up)
       Chord.new(all_notes, duration)
@@ -14,9 +14,12 @@ defmodule MusicBuild.Examples.ArpeggioProgressions do
   end
 
   # @spec do_arpeggio_progression([atom()], atom(), boolean(), String.t(), atom()) :: :ok
-  def do_arpeggio_progression(progression, key \\ :C, name \\ "arpeggio_progression", repeats, out_type \\ :lily) do
+  def do_arpeggio_progression(progression, key \\ :C, repeats, assignments \\ %{chord: {0, 0}, arpeggio: {0,0}, bass: {0,0}}) do
 
-    chords = build_chords(progression, key, 4, 2)
+    {chord_channel, chord_instrument} = assignments[:chord]
+    {arpeggio_channel, arpeggio_instrument} = assignments[:arpeggio]
+    {bass_channel, bass_instrument} = assignments[:bass]
+    chords = build_chords(progression, key, 4, 2, chord_channel)
 
     all_chords = List.duplicate(chords, repeats)
                 |> List.flatten()
@@ -32,7 +35,7 @@ defmodule MusicBuild.Examples.ArpeggioProgressions do
       [2,3,4,1]
     ]
 
-    all_arpeggios = Enum.map(Enum.zip(chords, patterns), fn {c, p} -> Arpeggio.new(c, p, 0.5) end)
+    all_arpeggios = Enum.map(Enum.zip(chords, patterns), fn {c, p} -> Arpeggio.new(c, p, 0.5, arpeggio_channel) end)
                     |> List.duplicate(repeats)
                     |> List.flatten()
 
@@ -49,18 +52,29 @@ defmodule MusicBuild.Examples.ArpeggioProgressions do
     ]
 
 
-    bass_chords = build_chords(progression, key, 2, 1)
+    bass_chords = build_chords(progression, key, 2, 1, bass_channel)
 
-    bass_arpeggios = Enum.map(Enum.zip(bass_chords, bass_patterns), fn {c, p} -> Arpeggio.new(c, p, 1) end)
+    bass_arpeggios = Enum.map(Enum.zip(bass_chords, bass_patterns), fn {c, p} ->
+      Arpeggio.new(c, p, 1, bass_channel)
+    end)
                     |> List.duplicate(repeats)
                     |> List.flatten()
 
-    write_file([all_chords, all_arpeggios, bass_arpeggios], name, out_type, inst_names: ["piano chords", "arpeggios", "bass"])
+
+
+    %{
+      0 => STrack.new("piano chords", all_chords, 960, :instrument, chord_instrument, 100),
+      1 => STrack.new("arpeggios", all_arpeggios, 960, :instrument, arpeggio_instrument, 100),
+      2 => STrack.new("bass", bass_arpeggios, 960, :instrument, bass_instrument, 100)
+    }
   end
 
   def pachelbels_canon(out_type \\ :lily) do
     #do_arpeggio_progression([:I, :V, :vi, :iii, :IV, :I, :IV, :V],  :C, "pachelbel", 10, out_type)
-    do_arpeggio_progression([:I, :V, :vi, :iii, :IV, :I, :IV, :V],  :C, "midi/pachelbel.mid", 10, out_type)
+    assignments = %{chord: {0, 0}, arpeggio: {1,73}, bass: {2,32}}
+    do_arpeggio_progression([:I, :V, :vi, :iii, :IV, :I, :IV, :V],  :C, 10, assignments)
+    |> write_file("midi/pachelbel.mid", out_type)
+
   end
 
 end
