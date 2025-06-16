@@ -71,22 +71,22 @@ end
 
 # Let's see what we can do:
 def build_bass_line(probabilities_table, root_map, num_cycles) do
-  base_lines = Enum.flat_map(0..num_cycles, fn _ ->
-  Enum.flat_map(@pattern, fn rn ->
-    Enum.map(0..7, fn i ->
-      [_, root_number] = Map.get(root_map, rn)
-      interval = WeightedRandom.take_one(get_in(probabilities_table, [rn, i]))
-      MidiNote.midi_to_note(root_number + interval, 0.5, 127)
-    end)
+  Enum.flat_map(0..num_cycles, fn _ ->
+    Enum.flat_map(@pattern, fn rn ->
+      Enum.map(0..7, fn i ->
+        [_, root_number] = Map.get(root_map, rn)
+        interval = WeightedRandom.take_one(get_in(probabilities_table, [rn, i]))
+        MidiNote.midi_to_note(root_number + interval, 0.5, 127)
+      end)
     end)
   end)
-  MusicBuild.Util.write_midi_file([base_lines],
-    Path.join(@test_dir, "generated_blues_bass.mid"))
 end
 
 def bass_player() do
   {root_map, table} = compute_probability_table()
-  build_bass_line(table, root_map, 4)
+  bass_lines = build_bass_line(table, root_map, 4)
+  MusicBuild.Util.write_midi_file([bass_lines],
+    Path.join(@test_dir, "generated_blues_bass.mid"))
 end
 
 # ── Build the pattern/position probabilities table ──

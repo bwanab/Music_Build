@@ -6,15 +6,11 @@ defmodule MusicBuild.Util do
 #  @spec write_midi_file(%{any() => STrack.t()}) :: :ok
   def write_midi_file(n, o, opts \\ [])
   def write_midi_file(strack_map, outpath, opts) when is_map(strack_map) do
-
+    name = Path.basename(outpath, Path.extname(outpath))
     bpm = Map.get(strack_map, Enum.at(Map.keys(strack_map), 0)).bpm
-    [tracks, names, program_numbers] = get_tracks_names_prog_nums(strack_map)
+    tpqn = Keyword.get(opts, :ticks_per_quarter_note, 960)
 
-    opts = opts
-          |> Keyword.put(:inst_names, names)
-          |> Keyword.put(:program_numbers, program_numbers)
-          |> Keyword.put(:bpm, bpm)
-    write_midi_file(tracks, outpath, opts)
+    Midifile.write(build_sequence(strack_map, name, bpm, tpqn), outpath)
   end
 
  # @spec write_midi_file([Sonority.t()], binary, keyword()) :: :ok
@@ -26,25 +22,23 @@ defmodule MusicBuild.Util do
     name = Path.basename(outpath, Path.extname(outpath))
 
     tracks = Enum.map(Enum.zip([notes, inst_names, program_numbers]), fn {track, inst_name, program_number} ->
-      TrackBuilder.new(inst_name, track, 960, program_number)
+      TrackBuilder.new(inst_name, track, tpqn, program_number)
     end)
     sfs = Sequence.new(name, bpm, tracks, tpqn)
     Midifile.write(sfs, outpath)
   end
 
-  def get_tracks_names_prog_nums(strack_map) do
-     Map.values(strack_map)
-       |> Enum.map(fn %STrack{name: name, sonorities: sonorities, program_number: program_number} ->
-        use_name = if is_nil(name) or is_number(name), do: "Unnamed", else: name
-        {sonorities, use_name, program_number}
-      end)
-      |> unzip_n()
+  def build_sequence(strack_map, name, bpm, tpqn) do
+    tracks = Enum.map(Map.values(strack_map), fn s -> TrackBuilder.new(s) end)
+    Sequence.new(name, bpm, tracks, tpqn)
+
   end
 
   #@spec write_file([Sonority.t()], binary(), atom(), keyword()) :: :ok
   def write_file(strack_map, name, out_type \\ :midi, opts \\ [])
   def write_file(strack_map, name, out_type, opts) when is_map(strack_map) do
     case out_type do
+      :play -> MidiPlayer.play_strack_map(strack_map)
       :midi -> write_midi_file(strack_map, name, opts)
       :lily ->
         strack_list = Map.values(strack_map)

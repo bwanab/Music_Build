@@ -59,7 +59,7 @@ defmodule MusicBuild.TrackBuilder do
     %Track{
       name: name,
       events: List.flatten(e1 ++ prog_event ++ events ++ e_last)
-              |> post_process_events()
+             |> post_process_events()
     }
   end
 
@@ -105,7 +105,7 @@ defmodule MusicBuild.TrackBuilder do
             off_event ->
               {off_ev, _} = off_event
               # create a noop  that maintains timing.
-              new_event = %Midifile.Event{symbol: :pitch_bend, delta_time: off_ev.delta_time, bytes: [224, <<32, 0>>]}
+              new_event = %Midifile.Event{symbol: :sysex, delta_time: off_ev.delta_time, bytes: [240, 0, 0, 247]}
               {Map.delete(on_off_map, {note, channel, abs_time}), delete_list ++ [off_event], [{new_event,abs_time}|all_list]}
           end
         _ -> {on_off_map, delete_list, [e |all_list]}
