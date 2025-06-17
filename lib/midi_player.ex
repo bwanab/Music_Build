@@ -11,6 +11,7 @@ defmodule MidiPlayer do
     play_strack_map(stm)
   end
 
+
   @spec play_file(String.t()) :: pid()
   def play_file(name) do
     seq = Midifile.read(name)
@@ -85,16 +86,11 @@ defmodule MetronomeServer do
   @impl true
   def handle_call(:start_playback, _from, state) do
     if not state.playing do
-      metronome_ticks_per_quarter_note = calculate_ticks_per_quarter_note(state.state.bpm)
-
-      track_pids = start_track_servers(state.track_events, %{state.state | metronome_ticks_per_quarter_note: metronome_ticks_per_quarter_note})
-
-      {:ok, timer_ref} = :timer.send_interval(1, self(), :tick)
+      track_pids = start_track_servers(state.track_events, state.state)
 
       new_state = %{state |
         track_pids: track_pids,
         playing: true,
-        timer_ref: timer_ref
       }
       {:reply, :ok, new_state}
     else
@@ -105,7 +101,6 @@ defmodule MetronomeServer do
   @impl true
   def handle_call(:stop_playback, _from, state) do
     if state.playing do
-      :timer.cancel(state.timer_ref)
       Enum.each(state.track_pids, fn pid -> TrackServer.stop(pid) end)
       new_state = %{state | playing: false, track_pids: [], timer_ref: nil}
       {:reply, :ok, new_state}
@@ -114,22 +109,11 @@ defmodule MetronomeServer do
     end
   end
 
-  @impl true
-  def handle_info(:tick, state) do
-    Enum.each(state.track_pids, fn pid -> TrackServer.tick(pid) end)
-    {:noreply, %{state | tick_count: state.tick_count + 1}}
-  end
-
   defp start_track_servers(track_events_list, state) do
     Enum.map(track_events_list, fn events ->
       {:ok, pid} = TrackServer.start_link(events, state)
       pid
     end)
-  end
-
-  @millseconds_per_minute 60_000
-  defp calculate_ticks_per_quarter_note(bpm) do
-    round(@millseconds_per_minute / bpm)
   end
 end
 
@@ -141,29 +125,21 @@ defmodule TrackServer do
     GenServer.start_link(__MODULE__, {events, state})
   end
 
-  def tick(pid) do
-    GenServer.cast(pid, :tick)
-  end
-
   def stop(pid) do
     GenServer.call(pid, :stop)
   end
 
-  @impl true
-  def init({events, state}) do
-    {:ok, %{
-      channel: 0,
-      events: events,
-      state: state,
-      current_event_ticks_remaining: 0,
-      tick_count: 0
-    }}
+  def tick(pid) do
+    GenServer.cast(pid, :tick)
   end
 
   @impl true
-  def handle_cast(:tick, state) do
-    new_state = process_tick(state)
-    {:noreply, new_state}
+  def init({events, state}) do
+    {:ok, process_next_event(%{
+      channel: 0,
+      events: events,
+      state: state,
+    })}
   end
 
   @impl true
@@ -173,20 +149,9 @@ defmodule TrackServer do
     {:stop, :normal, :ok, state}
   end
 
-  defp process_tick(state) do
-    new_tick_count = state.tick_count - 1
-
-    cond  do
-      state.current_event_ticks_remaining == 0 ->
-        process_next_event(%{state | tick_count: new_tick_count})
-      state.current_event_ticks_remaining < 0 ->
-        state
-      true ->
-        %{state |
-          current_event_ticks_remaining: state.current_event_ticks_remaining - 1,
-          tick_count: new_tick_count
-        }
-    end
+  @impl true
+  def handle_info(:tick, state) do
+    {:noreply, process_next_event(state)}
   end
 
   defp process_next_event(%{events: []} = state) do
@@ -194,7 +159,9 @@ defmodule TrackServer do
   end
 
   defp process_next_event(%{events: [event | remaining_events]} = state) do
+    #Logger.debug(event)
     case event do
+
 
       %Midifile.Event{symbol: symbol, delta_time: _delta, bytes: bytes} ->
         unless symbol == :track_end or symbol == :seq_name do
@@ -203,9 +170,9 @@ defmodule TrackServer do
 
         next_event_ticks = if length(remaining_events) > 0 do
           next_event = List.first(remaining_events)
-          delta_to_ticks(next_event.delta_time, state.state.bpm, state.state.tpqn, state.state.metronome_ticks_per_quarter_note)
+          delta_to_ticks(next_event.delta_time, state.state.bpm, state.state.tpqn)
         else
-          -1
+          0
         end
 
         channel = if symbol == :program do
@@ -214,23 +181,44 @@ defmodule TrackServer do
           state.channel
         end
 
-
+        pid = self()
+        spawn(fn ->
+          busy_wait_microseconds(next_event_ticks)
+          send(pid, :tick)
+        end)
 
         %{state |
           channel: channel,
           events: remaining_events,
-          current_event_ticks_remaining: next_event_ticks
         }
     end
   end
 
-  defp delta_to_ticks(delta_time, _bpm, tpqn, metronome_ticks_per_quarter_note) do
+
+
+  def busy_wait_microseconds(microseconds) do
+    start_time = :erlang.monotonic_time(:microsecond)
+    target_time = start_time + microseconds
+
+    wait_until(target_time)
+  end
+
+  defp wait_until(target_time) do
+    if :erlang.monotonic_time(:microsecond) < target_time do
+      wait_until(target_time)
+    end
+  end
+
+
+  @microseconds_per_minute 60_000_000
+
+  def delta_to_ticks(delta_time, bpm, tpqn) do
     if delta_time == 0 do
       0
     else
       quarter_notes = delta_time / tpqn
       # Logger.info("#{quarter_notes * ticks_per_quarter} #{round(quarter_notes * ticks_per_quarter)}")
-      round(quarter_notes *  metronome_ticks_per_quarter_note)
+      round(quarter_notes *  @microseconds_per_minute / bpm)
     end
   end
 
