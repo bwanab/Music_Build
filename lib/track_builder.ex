@@ -59,7 +59,7 @@ defmodule MusicBuild.TrackBuilder do
     %Track{
       name: name,
       events: List.flatten(e1 ++ prog_event ++ events ++ e_last)
-             |> post_process_events()
+             # |> post_process_events()
     }
   end
 

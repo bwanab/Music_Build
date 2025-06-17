@@ -78,4 +78,12 @@ defmodule MusicBuild.Examples.ArpeggioProgressions do
 
   end
 
+  def test_one(track \\ 0) do
+    assignments = %{chord: {0, 19}, arpeggio: {1,73}, bass: {2,32}}
+    stm = do_arpeggio_progression([:I, :V, :vi, :iii, :IV, :I, :IV, :V],  :C, 10, assignments)
+    stm0 = %{0 => stm[track]}
+    write_file(stm0, "", :play)
+  end
+
+
 end

@@ -1,7 +1,17 @@
 defmodule MidiPlayer do
   require Logger
 
-  @spec play_file(String.t()) :: :ok
+  def test() do
+    c_scale = Scale.major_scale(:C, 4)
+    delayed_scale = [Rest.new(0.5, 1) | c_scale] |> Enum.map(fn note -> Sonority.copy(note, channel: 1, octave: 2) end)
+    stm = %{
+       0 => STrack.new("c_scale", c_scale, 960, :instrument, 73, 100),
+       1 => STrack.new("delayed_scale", delayed_scale, 960, :instrument, 32, 100),
+     }
+    play_strack_map(stm)
+  end
+
+  @spec play_file(String.t()) :: pid()
   def play_file(name) do
     seq = Midifile.read(name)
     play_seq(seq)
@@ -16,7 +26,7 @@ defmodule MidiPlayer do
     state = initial_state(seq)
     {:ok, metronome_pid} = MetronomeServer.start_link(seq, state)
     MetronomeServer.start_playback(metronome_pid)
-    :ok
+    metronome_pid
   end
 
   def stop(metronome_pid) do
@@ -34,7 +44,8 @@ defmodule MidiPlayer do
       %{
         :tpqn => seq.ticks_per_quarter_note,
         :synth => fluid,
-        :bpm => Midifile.Sequence.bpm(seq)
+        :bpm => Midifile.Sequence.bpm(seq),
+        :metronome_ticks_per_quarter_note => 120
       }
     end
   end
@@ -43,8 +54,6 @@ end
 defmodule MetronomeServer do
   use GenServer
   require Logger
-
-  @ticks_per_quarter_note 24
 
   def start_link(seq, state) do
     GenServer.start_link(__MODULE__, {seq, state})
@@ -61,7 +70,7 @@ defmodule MetronomeServer do
   @impl true
   def init({seq, state}) do
     track_events = Enum.map(seq.tracks, fn track -> track.events end)
-    
+
     {:ok, %{
       seq: seq,
       state: state,
@@ -76,14 +85,15 @@ defmodule MetronomeServer do
   @impl true
   def handle_call(:start_playback, _from, state) do
     if not state.playing do
-      track_pids = start_track_servers(state.track_events, state.state)
-      
-      tick_interval_ms = calculate_tick_interval(state.state.bpm)
-      {:ok, timer_ref} = :timer.send_interval(tick_interval_ms, self(), :tick)
-      
-      new_state = %{state | 
-        track_pids: track_pids, 
-        playing: true, 
+      metronome_ticks_per_quarter_note = calculate_ticks_per_quarter_note(state.state.bpm)
+
+      track_pids = start_track_servers(state.track_events, %{state.state | metronome_ticks_per_quarter_note: metronome_ticks_per_quarter_note})
+
+      {:ok, timer_ref} = :timer.send_interval(1, self(), :tick)
+
+      new_state = %{state |
+        track_pids: track_pids,
+        playing: true,
         timer_ref: timer_ref
       }
       {:reply, :ok, new_state}
@@ -117,9 +127,9 @@ defmodule MetronomeServer do
     end)
   end
 
-  defp calculate_tick_interval(bpm) do
-    quarter_note_ms = 60_000 / bpm
-    round(quarter_note_ms / @ticks_per_quarter_note)
+  @millseconds_per_minute 60_000
+  defp calculate_ticks_per_quarter_note(bpm) do
+    round(@millseconds_per_minute / bpm)
   end
 end
 
@@ -142,6 +152,7 @@ defmodule TrackServer do
   @impl true
   def init({events, state}) do
     {:ok, %{
+      channel: 0,
       events: events,
       state: state,
       current_event_ticks_remaining: 0,
@@ -157,19 +168,24 @@ defmodule TrackServer do
 
   @impl true
   def handle_call(:stop, _from, state) do
+    bytes = [176 + state.channel, 123, 0]
+    Midiex.send_msg(state.state.synth, IO.iodata_to_binary(bytes))
     {:stop, :normal, :ok, state}
   end
 
   defp process_tick(state) do
-    new_tick_count = state.tick_count + 1
-    
-    if state.current_event_ticks_remaining <= 1 do
-      process_next_event(%{state | tick_count: new_tick_count})
-    else
-      %{state | 
-        current_event_ticks_remaining: state.current_event_ticks_remaining - 1,
-        tick_count: new_tick_count
-      }
+    new_tick_count = state.tick_count - 1
+
+    cond  do
+      state.current_event_ticks_remaining == 0 ->
+        process_next_event(%{state | tick_count: new_tick_count})
+      state.current_event_ticks_remaining < 0 ->
+        state
+      true ->
+        %{state |
+          current_event_ticks_remaining: state.current_event_ticks_remaining - 1,
+          tick_count: new_tick_count
+        }
     end
   end
 
@@ -179,35 +195,43 @@ defmodule TrackServer do
 
   defp process_next_event(%{events: [event | remaining_events]} = state) do
     case event do
-      %Midifile.Event{symbol: :seq_name} ->
-        process_next_event(%{state | events: remaining_events})
-      
+
       %Midifile.Event{symbol: symbol, delta_time: _delta, bytes: bytes} ->
-        unless symbol == :track_end do
+        unless symbol == :track_end or symbol == :seq_name do
           Midiex.send_msg(state.state.synth, IO.iodata_to_binary(bytes))
         end
-        
+
         next_event_ticks = if length(remaining_events) > 0 do
           next_event = List.first(remaining_events)
-          delta_to_ticks(next_event.delta_time, state.state.bpm, state.state.tpqn)
+          delta_to_ticks(next_event.delta_time, state.state.bpm, state.state.tpqn, state.state.metronome_ticks_per_quarter_note)
         else
-          0
+          -1
         end
-        
-        %{state | 
+
+        channel = if symbol == :program do
+          Midifile.Event.channel(event)
+        else
+          state.channel
+        end
+
+
+
+        %{state |
+          channel: channel,
           events: remaining_events,
           current_event_ticks_remaining: next_event_ticks
         }
     end
   end
 
-  defp delta_to_ticks(delta_time, _bpm, tpqn) do
+  defp delta_to_ticks(delta_time, _bpm, tpqn, metronome_ticks_per_quarter_note) do
     if delta_time == 0 do
       0
     else
-      ticks_per_quarter = 24
       quarter_notes = delta_time / tpqn
-      round(quarter_notes * ticks_per_quarter)
+      # Logger.info("#{quarter_notes * ticks_per_quarter} #{round(quarter_notes * ticks_per_quarter)}")
+      round(quarter_notes *  metronome_ticks_per_quarter_note)
     end
   end
+
 end

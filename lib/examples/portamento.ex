@@ -5,7 +5,7 @@ defmodule MusicBuild.Examples.Portamento do
 
   def build_portamento() do
     n1 = Note.new(:C, octave: 3, duration: 1)
-    midi_note_val = MidiNote.to_midi(n1)
+    _midi_note_val = MidiNote.to_midi(n1)
     notes = [
       Controller.new(5, 127, 0),
       n1,
