@@ -181,11 +181,7 @@ defmodule TrackServer do
           state.channel
         end
 
-        pid = self()
-        spawn(fn ->
-          busy_wait_microseconds(next_event_ticks)
-          send(pid, :tick)
-        end)
+        PreciseTimer.start_delay(next_event_ticks, self(), :tick)
 
         %{state |
           channel: channel,
@@ -193,24 +189,7 @@ defmodule TrackServer do
         }
     end
   end
-
-
-
-  def busy_wait_microseconds(microseconds) do
-    start_time = :erlang.monotonic_time(:microsecond)
-    target_time = start_time + microseconds
-
-    wait_until(target_time)
-  end
-
-  defp wait_until(target_time) do
-    if :erlang.monotonic_time(:microsecond) < target_time do
-      wait_until(target_time)
-    end
-  end
-
-
-  @microseconds_per_minute 60_000_000
+  @miilliseconds_per_minute 60_000
 
   def delta_to_ticks(delta_time, bpm, tpqn) do
     if delta_time == 0 do
@@ -218,8 +197,55 @@ defmodule TrackServer do
     else
       quarter_notes = delta_time / tpqn
       # Logger.info("#{quarter_notes * ticks_per_quarter} #{round(quarter_notes * ticks_per_quarter)}")
-      round(quarter_notes *  @microseconds_per_minute / bpm)
+      quarter_notes *  @miilliseconds_per_minute / bpm
     end
   end
 
+end
+
+defmodule PreciseTimer do
+  @doc"""
+  The problem this module is solving is that music playback requires a very high resolution in time.
+  E.G. at 70 beats per minute given a ticks per quarter note of 960, for an eight note the number
+  of milliseconds between note on and note off is 428.57142857, but since there are no timers in
+  erlang or elixir that allow for better resolution than milliseconds, we would either have to
+  delay for 428 or 429 milliseconds. After compounding errors like that over a full song,
+  we start to get drift between tracks. This module gives microsecond timing capability.
+  """
+  require Logger
+  def start_delay(total_milliseconds, target_pid, message \\ :timer_complete) do
+    if total_milliseconds <= 0 do
+      send(target_pid, :tick)
+    else
+      start_time = :erlang.monotonic_time(:microsecond)
+      target_time = start_time + total_milliseconds * 1000
+
+      milliseconds = max(floor(total_milliseconds) - 5, 0)
+      #Logger.info("milliseconds to sleep #{milliseconds} #{total_milliseconds}")
+      #microsecond_remainder = (total_milliseconds - milliseconds) * 1000
+
+      # Logger.info("total: #{total_milliseconds} milli: #{milliseconds} micro: #{microsecond_remainder}")
+      # The total_milliseconds is almost always a floating number e.g. 123.456.
+      # for really precise timing that doesn't suck up all the cpu, we compute
+      # the target time then ideally we  would sleep for the floor(total_milliseconds)
+      # but in practice that appears to overshoot the mark which causes timing to get
+      # off, so we subtract 5 milliseconds from that. This is entirely experimentally
+      # derived, so on a different machine or OS, the values might have to be different.
+      # So, we sleep for the this value of milliseconds and finish with a brute
+      # force delay until we've reached the target time. For a value that is typical
+      # this results in huge cpu savings.
+      Process.sleep(milliseconds)
+      #Logger.info("after sleep target: #{target_time} current: #{:erlang.monotonic_time(:microsecond)} ")
+      spawn(fn ->
+        wait_until(target_time)
+        send(target_pid, message)
+      end)
+    end
+  end
+
+  defp wait_until(target_time) do
+    if :erlang.monotonic_time(:microsecond) < target_time do
+      wait_until(target_time)
+    end
+  end
 end
