@@ -195,7 +195,7 @@ defmodule MapEvents do
         instrument_name -> instrument_name
       end
 
-      {channel, STrack.new(channel_instrument_name, final_sonorities, tpqn, :instrument, program_number, Midifile.Sequence.bpm(sequence))}
+      {channel, STrack.new(final_sonorities, name: channel_instrument_name, tpqn: tpqn, type: :instrument, program_number: program_number, bpm: Midifile.Sequence.bpm(sequence))}
     end)
   end
 
@@ -280,7 +280,7 @@ defmodule MapEvents do
       end
 
       # Use pitch as the key instead of channel, with a prefix to distinguish from channels
-      {"percussion_#{pitch}", STrack.new(instrument_name, final_sonorities, tpqn, :percussion, 9, Midifile.Sequence.bpm(sequence))}
+      {"percussion_#{pitch}", STrack.new(final_sonorities, name: instrument_name, tpqn: tpqn, type: :percussion, program_number: 9, bpm: Midifile.Sequence.bpm(sequence))}
     end)
 
     # Merge non-percussion and percussion results

@@ -64,9 +64,9 @@ defmodule MusicBuild.Examples.ArpeggioProgressions do
                     |> List.flatten()
 
   %{
-     0 => STrack.new("piano chords", all_chords, 960, :instrument, chord_instrument, 100),
-     1 => STrack.new("arpeggios", all_arpeggios, 960, :instrument, arpeggio_instrument, 100),
-     2 => STrack.new("bass", bass_arpeggios, 960, :instrument, bass_instrument, 100)
+     0 => STrack.new(all_chords, name: "piano chords", tpqn: 960, type: :instrument, program_number: chord_instrument, bpm: 100),
+     1 => STrack.new(all_arpeggios, name: "arpeggios", tpqn: 960, type: :instrument, program_number: arpeggio_instrument, bpm: 100),
+     2 => STrack.new(bass_arpeggios, name: "bass", tpqn: 960, type: :instrument, program_number: bass_instrument, bpm: 100)
    }
   end
 

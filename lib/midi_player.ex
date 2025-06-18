@@ -2,11 +2,11 @@ defmodule MidiPlayer do
   require Logger
 
   def test() do
-    c_scale = Scale.major_scale(:C, 4)
-    delayed_scale = [Rest.new(0.5, 1) | c_scale] |> Enum.map(fn note -> Sonority.copy(note, channel: 1, octave: 2) end)
+    c_scale = Scale.major_scale(:C, octave: 4, channel: 0)
+    delayed_scale = [Rest.new(0.5, 1) | Scale.major_scale(:C, octave: 2, channel: 1)]
     stm = %{
-       0 => STrack.new("c_scale", c_scale, 960, :instrument, 73, 100),
-       1 => STrack.new("delayed_scale", delayed_scale, 960, :instrument, 32, 100),
+       0 => STrack.new(c_scale, name: "c_scale", tpqn: 960, type: :instrument, program_number: 73, bpm: 100),
+       1 => STrack.new(delayed_scale, name: "delayed_scale", tpqn: 960, type: :instrument, program_number: 32, bpm: 100),
      }
     play_strack_map(stm)
   end

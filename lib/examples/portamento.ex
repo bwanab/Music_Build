@@ -14,7 +14,7 @@ defmodule MusicBuild.Examples.Portamento do
       Note.new(:C, octave: 4, duration: 1)
     ]
     %{
-     0 => STrack.new("notes", notes, 960, :instrument, 73, 100),
+     0 => STrack.new(notes, name: "notes", tpqn: 960, type: :instrument, program_number: 73, bpm: 100),
     }
   end
 
