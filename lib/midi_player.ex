@@ -1,29 +1,24 @@
 defmodule MidiPlayer do
   require Logger
 
-  def test() do
-    c_scale = Scale.major_scale(:C, octave: 4, channel: 0)
-    delayed_scale = [Rest.new(0.5, 1) | Scale.major_scale(:C, octave: 2, channel: 1)]
-    stm = %{
-       0 => STrack.new(c_scale, name: "c_scale", tpqn: 960, type: :instrument, program_number: 73, bpm: 100),
-       1 => STrack.new(delayed_scale, name: "delayed_scale", tpqn: 960, type: :instrument, program_number: 32, bpm: 100),
-     }
-    play_strack_map(stm)
-  end
 
+  @spec play(binary() | STrack.t() | Midifile.Sequence.t(), keyword()) :: pid()
 
-  @spec play_file(String.t()) :: pid()
-  def play_file(name) do
+  def play(d, opts \\ [])
+
+  def play(name, _opts) when is_binary(name) do
     seq = Midifile.read(name)
-    play_seq(seq)
+    play(seq)
   end
 
-  def play_strack_map(stm, bpm \\ 100, tpqn \\ 960) do
+  def play(%STrack{} = stm, opts) do
+    bpm = Keyword.get(opts, :bpm, 100)
+    tpqn = Keyword.get(opts, :tpqn, 960)
     seq = MusicBuild.Util.build_sequence(stm, "dork", bpm, tpqn)
-    play_seq(seq)
+    play(seq)
   end
 
-  def play_seq(seq) do
+  def play(%Midifile.Sequence{} = seq, _opts) do
     state = initial_state(seq)
     {:ok, metronome_pid} = MetronomeServer.start_link(seq, state)
     MetronomeServer.start_playback(metronome_pid)

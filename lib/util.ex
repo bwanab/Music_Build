@@ -38,7 +38,7 @@ defmodule MusicBuild.Util do
   def write_file(strack_map, name, out_type \\ :midi, opts \\ [])
   def write_file(strack_map, name, out_type, opts) when is_map(strack_map) do
     case out_type do
-      :play -> MidiPlayer.play_strack_map(strack_map)
+      :play -> MidiPlayer.play(strack_map)
       :midi -> write_midi_file(strack_map, name, opts)
       :lily ->
         strack_list = Map.values(strack_map)
