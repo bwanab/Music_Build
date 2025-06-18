@@ -4,7 +4,7 @@ defmodule MusicBuild.MixProject do
   def project do
     [
       app: :music_build,
-      version: "0.1.0",
+      version: "0.2.0",
       elixir: "~> 1.18",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
@@ -33,6 +33,7 @@ defmodule MusicBuild.MixProject do
       #{:music_prims, path: "../music_prims", force: true},
       {:music_prims, github: "bwanab/music_prims"},
       {:midifile, github: "bwanab/elixir-midifile"},
+      {:midiex, "~> 0.6.3"},
       {:better_weighted_random, "~> 0.1"},
       {:csv, "~> 3.2"}
     ]
