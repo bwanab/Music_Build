@@ -11,7 +11,7 @@ defmodule MidiPlayer do
     play(seq)
   end
 
-  def play(%STrack{} = stm, opts) do
+  def play(stm, opts) when is_map(stm) do
     bpm = Keyword.get(opts, :bpm, 100)
     tpqn = Keyword.get(opts, :tpqn, 960)
     seq = MusicBuild.Util.build_sequence(stm, "dork", bpm, tpqn)
@@ -31,10 +31,10 @@ defmodule MidiPlayer do
 
   @spec initial_state(map) :: map
   def initial_state(seq, _trys \\ 0) do
-    out_ports = Midiex.ports(~r/FluidSynth/, :output)
+   out_ports = Midiex.ports(~r/FluidSynth/, :output)
     if length(out_ports) < 1 do
       exit("fluid synth isn't running")
-    else
+     else
       fluid = Midiex.open(List.first(out_ports))
 
       %{
@@ -193,6 +193,14 @@ defmodule TrackServer do
       quarter_notes = delta_time / tpqn
       # Logger.info("#{quarter_notes * ticks_per_quarter} #{round(quarter_notes * ticks_per_quarter)}")
       quarter_notes *  @miilliseconds_per_minute / bpm
+    end
+  end
+
+  def ticks_to_delta(ticks, bpm, tpqn) do
+    if ticks == 0 do
+      0
+    else
+      tpqn / (@miilliseconds_per_minute / ticks / bpm)
     end
   end
 
