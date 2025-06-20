@@ -33,6 +33,7 @@ defmodule MusicBuild.MixProject do
       #{:music_prims, path: "../music_prims", force: true},
       {:music_prims, github: "bwanab/music_prims"},
       {:midifile, github: "bwanab/elixir-midifile"},
+      #{:midifile, path: "../elixir-midifile", force: true},
       {:midiex, "~> 0.6.3"},
       {:better_weighted_random, "~> 0.1"},
       {:csv, "~> 3.2"}
