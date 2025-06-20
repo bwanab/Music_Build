@@ -1,129 +1,129 @@
 PC,Instrument
-0,Acoustic Grand Piano
-1,Bright Acoustic Piano
-2,Electric Grand Piano
-3,Honky-tonk Piano
-4,Electric Piano 1 (Rhodes Piano)
-5,Electric Piano 2 (Chorused Piano)
-6,Harpsichord
-7,Clavinet
-8,Celesta
-9,Glockenspiel
-10,Music Box
-11,Vibraphone
-12,Marimba
-13,Xylophone
-14,Tubular Bells
-15,Dulcimer (Santur)
-16,Drawbar Organ (Hammond)
-17,Percussive Organ
-18,Rock Organ
-19,Church Organ
-20,Reed Organ
-21,Accordion (French)
-22,Harmonica
-23,Tango Accordion (Band neon)
-24,Acoustic Guitar (nylon)
-25,Acoustic Guitar (steel)
-26,Electric Guitar (jazz)
-27,Electric Guitar (clean)
-28,Electric Guitar (muted)
-29,Overdriven Guitar
-30,Distortion Guitar
-31,Guitar harmonics
-32,Acoustic Bass
-33,Electric Bass (fingered)
-34,Electric Bass (picked)
-35,Fretless Bass
-36,Slap Bass 1
-37,Slap Bass 2
-38,Synth Bass 1
-39,Synth Bass 2
-40,Violin
-41,Viola
-42,Cello
-43,Contrabass
-44,Tremolo Strings
-45,Pizzicato Strings
-46,Orchestral Harp
-47,Timpani
-48,String Ensemble 1 (strings)
-49,String Ensemble 2 (slow strings)
-50,SynthStrings 1
-51,SynthStrings 2
-52,Choir Aahs
-53,Voice Oohs
-54,Synth Voice
-55,Orchestra Hit
-56,Trumpet
-57,Trombone
-58,Tuba
-59,Muted Trumpet
-60,French Horn
-61,Brass Section
-62,SynthBrass 1
-63,SynthBrass 2
-64,Soprano Sax
-65,Alto Sax
-66,Tenor Sax
-67,Baritone Sax
-68,Oboe
-69,English Horn
-70,Bassoon
-71,Clarinet
-72,Piccolo
-73,Flute
-74,Recorder
-75,Pan Flute
-76,Blown Bottle
-77,Shakuhachi
-78,Whistle
-79,Ocarina
-80,Lead 1 (square wave)
-81,Lead 2 (sawtooth wave)
-82,Lead 3 (calliope)
-83,Lead 4 (chiffer)
-84,Lead 5 (charang)
-85,Lead 6 (voice solo)
-86,Lead 7 (fifths)
-87,Lead 8 (bass + lead)
-88,Pad 1 (new age Fantasia)
-89,Pad 2 (warm)
-90,Pad 3 (polysynth)
-91,Pad 4 (choir space voice)
-92,Pad 5 (bowed glass)
-93,Pad 6 (metallic pro)
-94,Pad 7 (halo)
-95,Pad 8 (sweep)
-96,FX 1 (rain)
-97,FX 2 (soundtrack)
-98,FX 3 (crystal)
-99,FX 4 (atmosphere)
-100,FX 5 (brightness)
-101,FX 6 (goblins)
-102,"FX 7 (echoes, drops)"
-103,"FX 8 (sci-fi, star theme)"
-104,Sitar
-105,Banjo
-106,Shamisen
-107,Koto
-108,Kalimba
-109,Bag pipe
-110,Fiddle
-111,Shanai
-112,Tinkle Bell
-113,Agogo
-114,Steel Drums
-115,Woodblock
-116,Taiko Drum
-117,Melodic Tom
-118,Synth Drum
-119,Reverse Cymbal
-120,Guitar Fret Noise
-121,Breath Noise
-122,Seashore
-123,Bird Tweet
-124,Telephone Ring
-125,Helicopter
-126,Applause
-127,Gunshot
+0,acoustic_grand_piano
+1,bright_acoustic_piano
+2,electric_grand_piano
+3,honky_tonk_piano
+4,electric_piano_1_rhodes_piano
+5,electric_piano_2_chorused_piano
+6,harpsichord
+7,clavinet
+8,celesta
+9,glockenspiel
+10,music_box
+11,vibraphone
+12,marimba
+13,xylophone
+14,tubular_bells
+15,dulcimer_santur
+16,drawbar_organ_hammond
+17,percussive_organ
+18,rock_organ
+19,church_organ
+20,reed_organ
+21,accordion_french
+22,harmonica
+23,tango_accordion_band_neon
+24,acoustic_guitar_nylon
+25,acoustic_guitar_steel
+26,electric_guitar_jazz
+27,electric_guitar_clean
+28,electric_guitar_muted
+29,overdriven_guitar
+30,distortion_guitar
+31,guitar_harmonics
+32,acoustic_bass
+33,electric_bass_fingered
+34,electric_bass_picked
+35,fretless_bass
+36,slap_bass_1
+37,slap_bass_2
+38,synth_bass_1
+39,synth_bass_2
+40,violin
+41,viola
+42,cello
+43,contrabass
+44,tremolo_strings
+45,pizzicato_strings
+46,orchestral_harp
+47,timpani
+48,string_ensemble_1_strings
+49,string_ensemble_2_slow_strings
+50,synthstrings_1
+51,synthstrings_2
+52,choir_aahs
+53,voice_oohs
+54,synth_voice
+55,orchestra_hit
+56,trumpet
+57,trombone
+58,tuba
+59,muted_trumpet
+60,french_horn
+61,brass_section
+62,synthbrass_1
+63,synthbrass_2
+64,soprano_sax
+65,alto_sax
+66,tenor_sax
+67,baritone_sax
+68,oboe
+69,english_horn
+70,bassoon
+71,clarinet
+72,piccolo
+73,flute
+74,recorder
+75,pan_flute
+76,blown_bottle
+77,shakuhachi
+78,whistle
+79,ocarina
+80,lead_1_square_wave
+81,lead_2_sawtooth_wave
+82,lead_3_calliope
+83,lead_4_chiffer
+84,lead_5_charang
+85,lead_6_voice_solo
+86,lead_7_fifths
+87,lead_8_bass__lead
+88,pad_1_new_age_fantasia
+89,pad_2_warm
+90,pad_3_polysynth
+91,pad_4_choir_space_voice
+92,pad_5_bowed_glass
+93,pad_6_metallic_pro
+94,pad_7_halo
+95,pad_8_sweep
+96,fx_1_rain
+97,fx_2_soundtrack
+98,fx_3_crystal
+99,fx_4_atmosphere
+100,fx_5_brightness
+101,fx_6_goblins
+102,fx_7_echoes_drops
+103,fx_8_sci_fi_star_theme
+104,sitar
+105,banjo
+106,shamisen
+107,koto
+108,kalimba
+109,bag_pipe
+110,fiddle
+111,shanai
+112,tinkle_bell
+113,agogo
+114,steel_drums
+115,woodblock
+116,taiko_drum
+117,melodic_tom
+118,synth_drum
+119,reverse_cymbal
+120,guitar_fret_noise
+121,breath_noise
+122,seashore
+123,bird_tweet
+124,telephone_ring
+125,helicopter
+126,applause
+127,gunshot

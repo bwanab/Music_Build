@@ -11,18 +11,19 @@ defmodule MidiPlayer do
     play(seq)
   end
 
-  def play(stm, opts) when is_map(stm) do
-    bpm = Keyword.get(opts, :bpm, 100)
-    tpqn = Keyword.get(opts, :tpqn, 960)
-    seq = MusicBuild.Util.build_sequence(stm, "dork", bpm, tpqn)
-    play(seq)
-  end
 
   def play(%Midifile.Sequence{} = seq, _opts) do
     state = initial_state(seq)
     {:ok, metronome_pid} = MetronomeServer.start_link(seq, state)
     MetronomeServer.start_playback(metronome_pid)
     metronome_pid
+  end
+
+  def play(stm, opts) do
+    bpm = Keyword.get(opts, :bpm, 100)
+    tpqn = Keyword.get(opts, :tpqn, 960)
+    seq = MusicBuild.Util.build_sequence(stm, "dork", bpm, tpqn)
+    play(seq)
   end
 
   def stop(metronome_pid) do
