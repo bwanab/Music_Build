@@ -9,16 +9,16 @@ defmodule InstrumentMap do
   end
 
   def get_program(inst) do
-    Agent.get(__MODULE__, & Map.get(&1, inst))
+    Agent.get(__MODULE__, & Map.get(&1, inst, :error))
   end
 
-  def search(search_string) do
+  def search(search_string, num_to_return \\ 20) do
     table = Agent.get(__MODULE__, & &1)
     contains_group = Map.keys(table)
     |> Enum.filter(fn a -> String.contains?(Atom.to_string(a), search_string) end)
 
     len_cg = length(contains_group)
-    if len_cg >= 10 do
+    if len_cg >= num_to_return do
       contains_group
     else
       contains_group ++ (Map.keys(table)
@@ -26,7 +26,7 @@ defmodule InstrumentMap do
         {String.jaro_distance(Atom.to_string(a), search_string), a}
       end)
       |> Enum.sort(:desc)
-      |> Enum.take(10 - len_cg)
+      |> Enum.take(num_to_return - len_cg)
       |> Enum.map(fn {_, a} -> a end))
     end
   end
