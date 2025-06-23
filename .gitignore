@@ -16,6 +16,10 @@ erl_crash.dump
 # Also ignore archive artifacts (built via "mix archive.build").
 *.ez
 
+# ignore top level .exs files. They are created by claude and I often read
+# them for enlightenment, but they aren't project code.
+*.exs
+
 # Ignore package tarball (built via "mix hex.build").
 music_build-*.tar
 

@@ -12,6 +12,12 @@ defmodule InstrumentMap do
     Agent.get(__MODULE__, & Map.get(&1, inst, :error))
   end
 
+  def get_instrument(program_number) do
+    original = Agent.get(__MODULE__, & &1)
+    inverted = Map.new(original, fn {k, v} -> {v, k} end)
+    Map.get(inverted, program_number, :invalid_program_number)
+  end
+
   def search(search_string, num_to_return \\ 20) do
     table = Agent.get(__MODULE__, & &1)
     contains_group = Map.keys(table)

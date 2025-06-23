@@ -187,4 +187,56 @@ defmodule MusicBuild.Util do
     soundfont_path = Path.expand("~/Documents/music/soundfonts/PC51f.sf2")
     System.cmd("fluidsynth", ["-i", "#{soundfont_path}", "#{out_path}"])
   end
+
+  def event_description(%Midifile.Event{symbol: symbol, delta_time: _delta, bytes: bytes} = event) do
+    ControllerMap.start_link()
+    InstrumentMap.start_link()
+    case symbol do
+      :seq_name ->
+        "Name: #{bytes}"
+      :program ->
+        channel = Midifile.Event.channel(event)
+        [_, inst_num] = bytes
+        "Program channel: #{channel}, Instrument: #{InstrumentMap.get_instrument(inst_num)}"
+      :pitch_bend ->
+        channel = Midifile.Event.channel(event)
+        [_, bin] = bytes
+        [msb, lsb] = :binary.bin_to_list(bin)
+        "Pitch Bend channel #{channel}, value: #{msb * 256 + lsb}"
+      :on ->
+        channel = Midifile.Event.channel(event)
+        [_, note, velocity] = bytes
+        "Note on channel: #{channel}, note: #{note}, velocity: #{velocity}"
+      :off ->
+        channel = Midifile.Event.channel(event)
+        [_, note, _] = bytes
+        "Note off channel: #{channel}, note: #{note}"
+      :controller ->
+        channel = Midifile.Event.channel(event)
+        [_, controller_num, value] = bytes
+        "Controller channel: #{channel}, : #{ControllerMap.get_controller(controller_num)}, value: #{value}"
+      :track_end ->
+        "Track end"
+      :text ->
+        "Text: #{bytes}"
+      :lyric ->
+        ""
+      :marker ->
+        ""
+      :copyright ->
+        "Copyright: #{:binary.bin_to_list(bytes) |> List.to_string }"
+      :unknown_meta ->
+        ""
+      :sysex ->
+        [bin] = bytes
+        [man_id | l] = :binary.bin_to_list(bin)
+        "Sysex: manufactor id: #{man_id}, message: #{Enum.join(l, ", ")}"
+      _ ->
+        "Other event: #{Atom.to_string(symbol)}"
+    end
+  end
+
+  def event_description(l) when is_list(l) do
+    Enum.map(l, fn e -> event_description(e) end)
+  end
 end
