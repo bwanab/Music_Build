@@ -105,13 +105,14 @@ defmodule MusicBuild.TrackBuilder do
             off_event ->
               {off_ev, _} = off_event
               # create a noop  that maintains timing.
-              new_event = %Midifile.Event{symbol: :sysex, delta_time: off_ev.delta_time, bytes: [240, 0, 0, 247]}
+              new_event = %Midifile.Event{symbol: :sysex, delta_time: off_ev.delta_time, bytes: [<<240, 0, 0, 247>>]}
               {Map.delete(on_off_map, {note, channel, abs_time}), delete_list ++ [off_event], [{new_event,abs_time}|all_list]}
           end
         _ -> {on_off_map, delete_list, [e |all_list]}
       end
     end)
-    Enum.reduce(delete_list, all_list, fn e, acc -> List.delete(acc, e) end ) |> Enum.map(fn {e, _} -> e end)
+    Enum.reduce(delete_list, all_list, fn e, acc -> List.delete(acc, e) end )
+    |> Enum.map(fn {e, _} -> e end)
     |> Enum.reverse()
   end
 

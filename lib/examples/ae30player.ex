@@ -67,18 +67,18 @@ defmodule AE30Player do
     ticks_per_quarter_note = Keyword.get(opts, :ticks_per_quarter_note, 960)
     bpm = Keyword.get(opts, :bpm, 100)
 
-    input_port = case open_port(input_device_name, :input) do
+    input_port = case MidiPlayer.get_port(input_device_name, :input) do
       {:ok, port} -> port
       {:error, nil} -> exit("midi device #{input_device_name} isn't attached")
     end
-    output_synth = case open_port(output_synth_name, :output) do
+    output_synth = case MidiPlayer.get_port(output_synth_name, :output) do
       {:ok, port} ->  Midiex.open(port)
       {:error, nil} -> exit("#{output_synth_name} isn't running")
     end
     {:ok, listener} = Listener.start_link(port: input_port)
-    set_program(instrument, output_synth)
 
     pid = self()
+    prog_event = set_program(instrument, output_synth)
     my_msg_hander = fn msg -> handle_message(pid, msg) end
 
     Listener.add_handler(listener, my_msg_hander)
@@ -91,7 +91,7 @@ defmodule AE30Player do
       recording: record,
       listener: listener,
       input_port: input_port,
-      event_keeper: [],
+      event_keeper: [prog_event],
       last_ts: 0,
       ticks_per_quarter_note: ticks_per_quarter_note,
       bpm: bpm
@@ -157,21 +157,6 @@ defmodule AE30Player do
         %Midifile.Event{symbol: :program, delta_time: 0, bytes: program_data}
     end
   end
-
-  @spec open_port(binary(), :input | :output) :: {:ok | :error, %Midiex.MidiPort{} | nil}
-  def open_port(regex_string, type) do
-    case Regex.compile(regex_string) do
-    {:ok, regex} ->
-      ports = Midiex.ports(regex, type)
-      if length(ports) < 1 do
-          {:error, nil}
-      else
-          {:ok, List.first(ports)}
-      end
-    _ -> {:error, nil}
-    end
-  end
-
 
   def events_to_sequence(name \\ "UnNamed", events) do
     e1 = [%Midifile.Event{symbol: :seq_name, delta_time: 0, bytes: name}]

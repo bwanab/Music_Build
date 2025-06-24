@@ -6,14 +6,14 @@ defmodule MidiPlayer do
 
   def play(d, opts \\ [])
 
-  def play(name, _opts) when is_binary(name) do
+  def play(name, opts) when is_binary(name) do
     seq = Midifile.read(name)
-    play(seq)
+    play(seq, opts)
   end
 
 
-  def play(%Midifile.Sequence{} = seq, _opts) do
-    state = initial_state(seq)
+  def play(%Midifile.Sequence{} = seq, opts) do
+    state = initial_state(seq, opts)
     {:ok, metronome_pid} = MetronomeServer.start_link(seq, state)
     MetronomeServer.start_playback(metronome_pid)
     metronome_pid
@@ -23,29 +23,47 @@ defmodule MidiPlayer do
     bpm = Keyword.get(opts, :bpm, 100)
     tpqn = Keyword.get(opts, :tpqn, 960)
     seq = MusicBuild.Util.build_sequence(stm, "dork", bpm, tpqn)
-    play(seq)
+    play(seq, opts)
   end
 
   def stop(metronome_pid) do
     MetronomeServer.stop_playback(metronome_pid)
   end
 
-  @spec initial_state(map) :: map
-  def initial_state(seq, _trys \\ 0) do
-   out_ports = Midiex.ports(~r/FluidSynth/, :output)
-    if length(out_ports) < 1 do
-      exit("fluid synth isn't running")
-     else
-      fluid = Midiex.open(List.first(out_ports))
+  @spec initial_state(map, keyword()) :: map
+  def initial_state(seq, opts \\ []) do
+    output_synth = case Keyword.get(opts, :synth, nil) do
+      nil ->
+        output_synth_name = Keyword.get(opts, :synth_name, "FluidSynth")
+        case get_port(output_synth_name, :output) do
+          {:ok, port} ->  Midiex.open(port)
+          {:error, nil} -> exit("output port #{output_synth_name} can't be opened")
+        end
+      synth -> synth
+  end
 
-      %{
-        :tpqn => seq.ticks_per_quarter_note,
-        :synth => fluid,
-        :bpm => Midifile.Sequence.bpm(seq),
-        :metronome_ticks_per_quarter_note => 120
-      }
+    %{
+      :tpqn => seq.ticks_per_quarter_note,
+      :synth => output_synth,
+      :bpm => Midifile.Sequence.bpm(seq),
+      :metronome_ticks_per_quarter_note => 120
+    }
+  end
+
+  @spec get_port(binary(), :input | :output) :: {:ok | :error, %Midiex.MidiPort{} | nil}
+  def get_port(regex_string, type) do
+    case Regex.compile(regex_string) do
+    {:ok, regex} ->
+      ports = Midiex.ports(regex, type)
+      if length(ports) < 1 do
+          {:error, nil}
+      else
+          {:ok, List.first(ports)}
+      end
+    _ -> {:error, nil}
     end
   end
+
 end
 
 defmodule MetronomeServer do
@@ -111,6 +129,8 @@ defmodule MetronomeServer do
       pid
     end)
   end
+
+
 end
 
 defmodule TrackServer do
@@ -155,7 +175,7 @@ defmodule TrackServer do
   end
 
   defp process_next_event(%{events: [event | remaining_events]} = state) do
-    #Logger.debug(event)
+    Logger.debug(event)
     case event do
 
 
@@ -204,6 +224,7 @@ defmodule TrackServer do
       tpqn / (@miilliseconds_per_minute / ticks / bpm)
     end
   end
+
 
 end
 

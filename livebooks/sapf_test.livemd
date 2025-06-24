@@ -1,0 +1,150 @@
+# Connect sapf to elixir with Midiex
+
+```elixir
+Mix.install([
+  {:music_build, github: "bwanab/music_build"},
+  {:music_prims, github: "bwanab/music_prims"},
+  {:midifile, github: "bwanab/elixir-midifile", force: true},
+  {:better_weighted_random, "~> 0.1.0"},
+  {:midiex, "~> 0.6.3"}
+])
+```
+
+## Section
+
+In this book, we're going to connect elixir to sapf.
+
+first, create an output port
+
+```elixir
+dork_port = Midiex.create_virtual_output("dork")
+```
+
+Now, in a terminal run sapf and execute the following command:
+
+> midiStart
+
+This should result in a list of midiports something like:
+
+gMIDIClient 4457347
+
+midi sources 1 destinations 1
+
+MIDI Source  0 'dork', 'dork' UID: 356092455
+
+MIDI Destination  0 'FluidSynth virtual port (36417)', 'FluidSynth virtual port (36417)' UID: -971557172
+
+<!-- livebook:{"break_markdown":true} -->
+
+Now, again in the sapf session, given the above output:
+
+> 356092455 0 midiConnectInput
+
+<!-- livebook:{"break_markdown":true} -->
+
+Finally, set debug on in sapf
+
+> 1 midiDebug
+
+```elixir
+Midiex.send_msg(dork_port, IO.iodata_to_binary([144, 72, 114]))
+```
+
+In the sapf terminal, you should now see:
+
+> midi note on 0 1 72 114
+
+* the interpretation of this is 0 -> sourceIndex, 1 -> channel (1 based), 72 - note, 114 - velocity
+
+Now, in sapf:
+
+> 0 1 mlastkey
+> --> #[72 72 72 72 72 72 72 72 72 72 72 72 72 72 72 72 72 72 72 72 ...]
+> 
+> 0 1 mlastkey1
+> --> 72
+
+```elixir
+Midiex.send_msg(dork_port, IO.iodata_to_binary([145, 72, 114]))
+```
+
+In sapf:
+
+> midi note on 0 2 72 114
+
+> 0 2 mlastkey1 --> 72
+
+**Now, let's try a control message:**
+
+```elixir
+Midiex.send_msg(dork_port, IO.iodata_to_binary([176, 11, 80]))
+```
+
+In sapf:
+
+> midi control 0 1 11 120
+
+> 0 1 11 0 10 mctl1
+> --> 9.44882
+
+* the interpretation of the command is 0 -> sourceIndex, 1 -> channel (1 based), 11 -> the control message we're interested in, 0, 10, the range that the value (120) is scaled to. Thus, 120 (the midi value received) / 127 =~ 0.944882.
+
+```elixir
+120 / 127
+```
+
+nnhz is the function that translates a midi note to a hertz signal.
+
+in sapf:
+
+> 0 1 mlastkey nnhz 0 sinosc .3 * play
+
+Now, send it a note.
+
+```elixir
+Midiex.send_msg(dork_port, IO.iodata_to_binary([144, 72, 114]))
+```
+
+You should hear the note. Send another:
+
+```elixir
+Midiex.send_msg(dork_port, IO.iodata_to_binary([144, 60, 50]))
+```
+
+The note you hear should now be lower.
+
+Likewise, one can detect velocity with mlastvel which works like mctl:
+
+> 0 1 0 1 mlastvel
+
+* the interpretation is 0 --> sourceIndex, 1 --> channel, 0, 1 --> the range that the midi velocity value will be scaled to. Thus, we might have:
+
+* In sapf:
+
+> 0 1 mlastkey nnhz 0 sinosc 0 1 0 1 mlastvel * play
+
+Send a note at a given velocity.
+
+```elixir
+Midiex.send_msg(dork_port, IO.iodata_to_binary([144, 60, 50]))
+```
+
+Now, change the velocity:
+
+```elixir
+Midiex.send_msg(dork_port, IO.iodata_to_binary([144, 60, 30]))
+```
+
+Now, the sound should be lower.
+
+```elixir
+Midiex.send_msg(dork_port, IO.iodata_to_binary([144, 60, 1]))
+```
+
+Now, it is effective off, even though sending a new velocity would show that it's still running, just very low volume.
+
+Now, let's try something really crazy.
+
+```elixir
+
+```
