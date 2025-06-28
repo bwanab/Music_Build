@@ -2,11 +2,12 @@
 
 ```elixir
 Mix.install([
-  {:music_build, github: "bwanab/music_build"},
+  {:music_build, github: "bwanab/music_build", force: true},
   {:music_prims, github: "bwanab/music_prims"},
   {:midifile, github: "bwanab/elixir-midifile", force: true},
   {:better_weighted_random, "~> 0.1.0"},
-  {:midiex, "~> 0.6.3"}
+  {:midiex, "~> 0.6.3"},
+  {:kino, "~> 0.16.0"}
 ])
 ```
 
@@ -146,5 +147,84 @@ Now, it is effective off, even though sending a new velocity would show that it'
 Now, let's try something really crazy.
 
 ```elixir
+File.cd(Path.expand("~/src/music_build"))
+```
 
+```elixir
+seq = Midifile.read("midi/dork.mid")
+```
+
+```elixir
+MidiPlayer.play(seq, synth: dork_port)
+```
+
+You should have heard the entire midi file played! It won't have sounded good since it's just a simple sine wave synth, like a 1980s Atari game, but you should have heard the notes.
+
+<!-- livebook:{"break_markdown":true} -->
+
+Now, let's test midi control message handling. In sapf create the following:
+
+<!-- livebook:{"break_markdown":true} -->
+
+{
+
+```
+ :low        -1          ; low number to scale pb values
+
+ :high       7         ; high number to scale bp values
+
+ :channel    1           ; channel 0 in 0 based
+
+ :middle     3.18        ; empirically determined middle value
+
+ :out        \o[
+
+           0 o.channel o.low o.high mbend o.middle -
+```
+
+]
+
+} = mbs
+
+{
+
+```
+:low        0
+
+:high       10
+
+:channel    1
+
+:control    2
+
+:out        \o[
+
+            0 o.channel o.control o.low o.high mctl
+
+            ]
+```
+
+} = breath_ctl
+
+0 1 mlastkey mbs.out + nnhz 0 lfsaw 0 1 0 1 mlastvel * breath_ctl.out *  play
+
+<!-- livebook:{"break_markdown":true} -->
+
+**In elixir, do the following:**
+
+```elixir
+controllers = Enum.map(1..127, fn n -> [Controller.new(2, n, 0), Rest.new(0.125)] end) 
+  |> List.flatten()
+
+note = Note.new(:C, octave: 3, duration: 2, velocity: 80, channel: 0)
+sonorities = [note| controllers ++ Enum.reverse(controllers)]
+track = MusicBuild.TrackBuilder.new("dork", sonorities, 960, 0)
+seq = Midifile.Sequence.new("dork", 100, [track], 960)
+
+```
+
+Then, send the events to sapf. You should hear a note starting out low volume and increasing, then decreasing back to 0.
+
+```elixir
+MidiPlayer.play(seq, synth: dork_port)
 ```

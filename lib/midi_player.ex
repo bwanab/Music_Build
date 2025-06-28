@@ -175,7 +175,7 @@ defmodule TrackServer do
   end
 
   defp process_next_event(%{events: [event | remaining_events]} = state) do
-    Logger.debug(event)
+    # Logger.debug(event)
     case event do
 
 

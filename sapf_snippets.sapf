@@ -1,0 +1,27 @@
+; hopefully a form that works to provide pitch bend
+{
+    :low        -1          ; low number to scale pb values
+    :high       7         ; high number to scale bp values
+    :channel    1           ; channel 0 in 0 based
+    :middle     3.18        ; empirically determined middle value
+    :out        \o[
+                <%= dev %> o.channel o.low o.high mbend o.middle -
+
+]
+} = mbs
+
+; thus, to have a pitch bend adjusted sin wave:
+
+; <%= dev %> 1 mlastkey mbs.out + nnhz 0 lfsquare 0.2 * play
+
+{
+    :low        0
+    :high       10
+    :channel    1
+    :control    2
+    :out        \o[
+                <%= dev %> o.channel o.control o.low o.high mctl
+                ]
+} = breath_ctl
+
+<%= dev %> 1 mlastkey mbs.out + nnhz 0 lfsaw <%= dev %> 1 0 1 mlastvel * breath_ctl.out *  play
