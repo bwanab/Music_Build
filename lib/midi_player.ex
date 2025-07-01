@@ -30,6 +30,11 @@ defmodule MidiPlayer do
     MetronomeServer.stop_playback(metronome_pid)
   end
 
+  def wait_play(pid, timeout \\ 5 * 60_000) do # delay timeout is 5 minutes
+    GenServer.call(pid, :wait_for_completion, timeout)
+  end
+
+
   @spec initial_state(map, keyword()) :: map
   def initial_state(seq, opts \\ []) do
     output_synth = case Keyword.get(opts, :synth, nil) do
@@ -93,7 +98,8 @@ defmodule MetronomeServer do
       track_pids: [],
       playing: false,
       tick_count: 0,
-      timer_ref: nil
+      timer_ref: nil,
+      waiting_callers: []
     }}
   end
 
@@ -113,6 +119,18 @@ defmodule MetronomeServer do
   end
 
   @impl true
+  def handle_call(:wait_for_completion, from, %{track_pids: track_pids} = state) do
+    case length(track_pids) == 0 do
+      true ->
+        {:reply, :ok, state}
+      false ->
+        # Store the caller to reply later
+        new_state = %{state | waiting_callers: [from | state.waiting_callers]}
+        {:noreply, new_state}
+    end
+  end
+
+  @impl true
   def handle_call(:stop_playback, _from, state) do
     if state.playing do
       Enum.each(state.track_pids, fn pid -> TrackServer.stop(pid) end)
@@ -123,9 +141,24 @@ defmodule MetronomeServer do
     end
   end
 
+  @impl true
+  def handle_info({:track_done, track_pid}, %{track_pids: track_pids} = state) do
+    new_state = %{state | track_pids: List.delete(track_pids, track_pid)}
+
+    # Check if all workers are done and notify waiting callers
+    if length(new_state.track_pids) == 0 do
+      Enum.each(state.waiting_callers, fn caller ->
+        GenServer.reply(caller, :ok)
+      end)
+      {:noreply, %{new_state | waiting_callers: []}}
+    else
+      {:noreply, new_state}
+    end
+  end
+
   defp start_track_servers(track_events_list, state) do
     Enum.map(track_events_list, fn events ->
-      {:ok, pid} = TrackServer.start_link(events, state)
+      {:ok, pid} = TrackServer.start_link(events, state, self())
       pid
     end)
   end
@@ -137,8 +170,8 @@ defmodule TrackServer do
   use GenServer
   require Logger
 
-  def start_link(events, state) do
-    GenServer.start_link(__MODULE__, {events, state})
+  def start_link(events, state, caller_pid) do
+    GenServer.start_link(__MODULE__, {events, state, caller_pid})
   end
 
   def stop(pid) do
@@ -150,11 +183,12 @@ defmodule TrackServer do
   end
 
   @impl true
-  def init({events, state}) do
+  def init({events, state, caller_pid}) do
     {:ok, process_next_event(%{
       channel: 0,
       events: events,
       state: state,
+      caller_pid: caller_pid
     })}
   end
 
@@ -170,7 +204,8 @@ defmodule TrackServer do
     {:noreply, process_next_event(state)}
   end
 
-  defp process_next_event(%{events: []} = state) do
+  defp process_next_event(%{events: [], caller_pid: caller_pid} = state) do
+    send(caller_pid, {:track_done, self()})
     state
   end
 
