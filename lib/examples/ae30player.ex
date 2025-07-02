@@ -61,7 +61,6 @@ defmodule AE30Player do
   @impl true
   def init(opts \\ []) do
     input_device_name = Keyword.get(opts, :input, "AE-30")
-    output_synth_name = Keyword.get(opts, :output, "FluidSynth")
     instrument = Keyword.get(opts, :inst, :flute)
     record = Keyword.get(opts, :record, true)
     ticks_per_quarter_note = Keyword.get(opts, :ticks_per_quarter_note, 960)
@@ -71,9 +70,14 @@ defmodule AE30Player do
       {:ok, port} -> port
       {:error, nil} -> exit("midi device #{input_device_name} isn't attached")
     end
-    output_synth = case MidiPlayer.get_port(output_synth_name, :output) do
-      {:ok, port} ->  Midiex.open(port)
-      {:error, nil} -> exit("#{output_synth_name} isn't running")
+    output_synth_name = Keyword.get(opts, :output, "FluidSynth")
+    output_synth = case Keyword.get(opts, :synth) do
+      nil ->
+        case MidiPlayer.get_port(output_synth_name, :output) do
+          {:ok, port} ->  Midiex.open(port)
+          {:error, nil} -> exit("#{output_synth_name} isn't running")
+        end
+      synth -> synth
     end
     {:ok, listener} = Listener.start_link(port: input_port)
 
