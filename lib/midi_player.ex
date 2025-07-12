@@ -34,6 +34,9 @@ defmodule MidiPlayer do
     GenServer.call(pid, :wait_for_completion, timeout)
   end
 
+  def notify_when_play_done(pid) do
+    GenServer.call(pid, :notify_on_completion)
+  end
 
   @spec initial_state(map, keyword()) :: map
   def initial_state(seq, opts \\ []) do
@@ -131,6 +134,13 @@ defmodule MetronomeServer do
   end
 
   @impl true
+  def handle_call(:notify_on_completion, {pid, _ }, %{waiting_callers: waiting_callers} = state) do
+      # Store the caller to reply later
+      new_state = %{state | waiting_callers: [pid | waiting_callers]}
+      {:reply, :ok, new_state}
+  end
+
+  @impl true
   def handle_call(:stop_playback, _from, state) do
     if state.playing do
       Enum.each(state.track_pids, fn pid -> TrackServer.stop(pid) end)
@@ -148,7 +158,7 @@ defmodule MetronomeServer do
     # Check if all workers are done and notify waiting callers
     if length(new_state.track_pids) == 0 do
       Enum.each(state.waiting_callers, fn caller ->
-        GenServer.reply(caller, :ok)
+        send(caller, :midi_play_done)
       end)
       {:noreply, %{new_state | waiting_callers: []}}
     else
