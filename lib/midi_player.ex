@@ -158,7 +158,11 @@ defmodule MetronomeServer do
     # Check if all workers are done and notify waiting callers
     if length(new_state.track_pids) == 0 do
       Enum.each(state.waiting_callers, fn caller ->
-        send(caller, :midi_play_done)
+        if is_tuple(caller) do
+          GenServer.reply(caller, :ok)
+        else
+          send(caller, :midi_play_done)
+        end
       end)
       {:noreply, %{new_state | waiting_callers: []}}
     else
