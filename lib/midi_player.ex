@@ -20,7 +20,7 @@ defmodule MidiPlayer do
   end
 
   def play(stm, opts) do
-    bpm = Keyword.get(opts, :bpm, 100)
+    bpm = Keyword.get(opts, :bpm, Map.get(stm, List.first(Map.keys(stm))).bpm) # get the bpm of the first STrack
     tpqn = Keyword.get(opts, :tpqn, 960)
     seq = MusicBuild.Util.build_sequence(stm, "dork", bpm, tpqn)
     play(seq, opts)
